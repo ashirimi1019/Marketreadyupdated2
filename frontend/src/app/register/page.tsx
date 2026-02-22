@@ -33,7 +33,10 @@ export default function RegisterPage() {
   };
 
   const handleRegister = async () => {
+    const emailValue = email.trim();
     if (!username.trim()) return setMsg("Username is required.");
+    if (!emailValue) return setMsg("Email is required.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) return setMsg("Enter a valid email address.");
     if (!password.trim()) return setMsg("Password is required.");
     if (password.length < 8 || !/[A-Z]/.test(password) || !/[^A-Za-z0-9]/.test(password))
       return setMsg(passwordPolicyHint);
@@ -45,7 +48,7 @@ export default function RegisterPage() {
       const res = await apiSend<AuthResponse>("/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), email: email.trim() || null, password }),
+        body: JSON.stringify({ username: username.trim(), email: emailValue, password }),
       });
       if (res.auth_token && res.refresh_token) {
         login(res.user_id, res.auth_token, res.refresh_token);
@@ -108,7 +111,7 @@ export default function RegisterPage() {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>
-              Email <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
+              Email
             </label>
             <input
               type="email"
@@ -117,6 +120,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              required
               data-testid="register-email-input"
             />
           </div>

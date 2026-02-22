@@ -190,6 +190,8 @@ def register(payload: AuthRegisterIn, request: Request, db: Session = Depends(ge
     email = _normalize_email(payload.email)
     if len(username) < 3:
         raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
     password_issues = password_policy_issues(payload.password)
     if password_issues:
         raise HTTPException(
@@ -208,10 +210,9 @@ def register(payload: AuthRegisterIn, request: Request, db: Session = Depends(ge
     existing = db.query(StudentAccount).filter(StudentAccount.username == username).one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="Username already exists")
-    if email:
-        existing_email = db.query(StudentAccount).filter(StudentAccount.email == email).one_or_none()
-        if existing_email:
-            raise HTTPException(status_code=409, detail="Email already exists")
+    existing_email = db.query(StudentAccount).filter(StudentAccount.email == email).one_or_none()
+    if existing_email:
+        raise HTTPException(status_code=409, detail="Email already exists")
 
     salt, digest = hash_password(payload.password)
     account = StudentAccount(

@@ -23,7 +23,7 @@ class PathwayWithCompatibility(PathwayOut):
 
 class AuthRegisterIn(BaseModel):
     username: str
-    email: Optional[str] = None
+    email: str
     password: str
 
 
