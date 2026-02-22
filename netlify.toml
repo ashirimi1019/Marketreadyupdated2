@@ -5,6 +5,7 @@
 [build.environment]
   NODE_VERSION = "20"
   NEXT_TELEMETRY_DISABLED = "1"
+  NEXT_PUBLIC_API_BASE = "https://kbpaubxqms.us-east-1.awsapprunner.com/api"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
