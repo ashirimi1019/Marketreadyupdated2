@@ -2,14 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiGet, apiSend } from "@/lib/api";
-import { getErrorMessage, isNotFound } from "@/lib/errors";
+import { getErrorMessage } from "@/lib/errors";
 import { useSession } from "@/lib/session";
 import type {
   AICareerOrchestrator,
   MarketStressTest,
   RepoProofChecker,
   StudentProfile,
-  SalaryDeltaProjection,
 } from "@/types/api";
 
 const STRATEGIC_TIPS = [
@@ -44,55 +43,6 @@ function polarPoint(center: number, radius: number, angle: number): { x: number;
   return {
     x: center + radius * Math.cos(angle),
     y: center + radius * Math.sin(angle),
-  };
-}
-
-function toTaskLabel(task: string): string {
-  const cleaned = String(task || "")
-    .replace(/^week\s*\d+:\s*/i, "")
-    .split(/[:|-]/)[0]
-    .trim();
-  if (!cleaned) return "Execution milestone";
-  if (cleaned.length > 56) return `${cleaned.slice(0, 53)}...`;
-  return cleaned;
-}
-
-function buildSalaryDeltaFallback(
-  baseSalaryHint: number | null | undefined,
-  completedTasks: string[],
-  allTasks: string[],
-  queryUsed: string,
-  locationUsed: string
-): SalaryDeltaProjection {
-  const baseSalary = Math.max(45000, Math.round(Number(baseSalaryHint || 78000)));
-  const trackedLabels = Array.from(
-    new Set((allTasks.length ? allTasks : completedTasks).map(toTaskLabel).filter(Boolean))
-  ).slice(0, 8);
-  const completedSet = new Set(completedTasks.map(toTaskLabel));
-  const perSkillDelta = Math.max(900, Math.round(baseSalary * 0.018));
-
-  const skillRows = trackedLabels.map((skill) => ({
-    skill,
-    unlocked: completedSet.has(skill),
-    delta_usd: perSkillDelta,
-    source: "mission_estimate",
-  }));
-
-  const potential = skillRows
-    .filter((row) => row.unlocked)
-    .reduce((sum, row) => sum + row.delta_usd, 0);
-
-  return {
-    base_salary_estimate: baseSalary,
-    projected_salary_estimate: baseSalary + potential,
-    potential_value_added: potential,
-    unlocked_skill_count: skillRows.filter((row) => row.unlocked).length,
-    tracked_skill_count: skillRows.length,
-    source_mode: "estimated_fallback",
-    adzuna_query_used: queryUsed || null,
-    adzuna_location_used: locationUsed || null,
-    skill_deltas: skillRows,
-    generated_at: new Date().toISOString(),
   };
 }
 
@@ -198,9 +148,6 @@ export default function StudentAiGuidePage() {
   const [kanbanTasks, setKanbanTasks] = useState<MissionTask[]>([]);
   const [tipSeed, setTipSeed] = useState(0);
 
-  const [salaryDelta, setSalaryDelta] = useState<SalaryDeltaProjection | null>(null);
-  const [salaryLoading, setSalaryLoading] = useState(false);
-  const [salaryError, setSalaryError] = useState<string | null>(null);
   const [logicLog, setLogicLog] = useState<string[]>([
     "[SENTINEL] Awaiting mission telemetry...",
   ]);
@@ -440,46 +387,6 @@ export default function StudentAiGuidePage() {
     }
   };
 
-  const runSalaryDelta = async (completedTasks: string[], allTasks: string[]) => {
-    if (!isLoggedIn) return;
-    setSalaryLoading(true);
-    setSalaryError(null);
-    try {
-      const data = await apiSend<SalaryDeltaProjection>("/user/ai/salary-delta", {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_job: targetJob.trim() || "software engineer",
-          location: location.trim() || "united states",
-          completed_tasks: completedTasks,
-          all_tasks: allTasks,
-        }),
-      });
-      setSalaryDelta(data);
-      appendLogicLog(
-        `[ROI] Potential value +${salaryFormatter.format(data.potential_value_added)} from ${data.unlocked_skill_count} unlocked skills.`
-      );
-    } catch (err) {
-      const fallback = buildSalaryDeltaFallback(
-        stressResult?.salary_average,
-        completedTasks,
-        allTasks,
-        targetJob.trim() || "software engineer",
-        location.trim() || "united states"
-      );
-      setSalaryDelta(fallback);
-      if (isNotFound(err)) {
-        setSalaryError("Live salary delta endpoint is not deployed yet. Showing local estimate.");
-        appendLogicLog("[ROI] Salary delta endpoint not found; using local estimate model.");
-      } else {
-        setSalaryError("Salary delta service unavailable. Showing local estimate.");
-        appendLogicLog("[ROI] Salary delta service unavailable; using local estimate model.");
-      }
-    } finally {
-      setSalaryLoading(false);
-    }
-  };
-
   const mriScore = stressResult?.score ?? 0;
   const mri = mriTheme(mriScore);
   const gaugePct = Math.max(0, Math.min(100, mriScore));
@@ -508,14 +415,6 @@ export default function StudentAiGuidePage() {
       }),
     []
   );
-  useEffect(() => {
-    if (!isLoggedIn || !orchestratorResult || weekly.length === 0) return;
-    const completedTasks = weekly.filter((item) => weeklyChecks[item]);
-    const timer = window.setTimeout(() => {
-      runSalaryDelta(completedTasks, weekly);
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [headers, isLoggedIn, orchestratorResult, targetJob, location, weekly, weeklyChecks]);
 
   useEffect(() => {
     setWeeklyChecks((prev) => {
@@ -580,10 +479,7 @@ export default function StudentAiGuidePage() {
       : 0;
 
     const resilience = stressResult?.job_stability_score_2027 ?? 0;
-    const communication = Math.min(
-      100,
-      30 + weeklyProgressPct * 0.55 + (salaryDelta?.unlocked_skill_count ?? 0) * 3
-    );
+    const communication = Math.min(100, 30 + weeklyProgressPct * 0.55);
     const marketDemand = stressResult?.components?.market_trend_score ?? 0;
     const securityIndicators = [
       ...(repoResult?.verified_by_repo_skills ?? []),
@@ -603,7 +499,7 @@ export default function StudentAiGuidePage() {
       { label: "Market Demand", value: Math.max(0, Math.min(100, marketDemand)) },
       { label: "Security Awareness", value: Math.max(0, Math.min(100, securityAwareness)) },
     ];
-  }, [repoResult, salaryDelta?.unlocked_skill_count, stressResult, weeklyProgressPct]);
+  }, [repoResult, stressResult, weeklyProgressPct]);
 
   const radarGeometry = useMemo(() => {
     const size = 260;
@@ -819,58 +715,6 @@ export default function StudentAiGuidePage() {
             ))}
           </div>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-[color:var(--border)] bg-black/35 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-xl font-semibold">Potential Value Added</h3>
-          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">
-            Salary Delta Ticker
-          </span>
-        </div>
-        <p className="mt-1 text-sm text-[color:var(--muted)]">
-          As you complete weekly mission tasks, projected market value updates from Adzuna-linked signals.
-        </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-lg border border-white/10 bg-black/30 p-3">
-            <p className="text-xs uppercase tracking-wider text-zinc-500">Base salary</p>
-            <p className="mt-1 text-2xl font-bold text-white">
-              {salaryDelta ? salaryFormatter.format(salaryDelta.base_salary_estimate) : "$0"}
-            </p>
-          </div>
-          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 shadow-[0_0_24px_rgba(16,185,129,0.25)]">
-            <p className="text-xs uppercase tracking-wider text-emerald-200">Potential value added</p>
-            <p className="mt-1 text-3xl font-black text-emerald-200">
-              {salaryDelta ? `+${salaryFormatter.format(salaryDelta.potential_value_added)}` : "+$0"}
-            </p>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/30 p-3">
-            <p className="text-xs uppercase tracking-wider text-zinc-500">Projected salary</p>
-            <p className="mt-1 text-2xl font-bold text-white">
-              {salaryDelta ? salaryFormatter.format(salaryDelta.projected_salary_estimate) : "$0"}
-            </p>
-          </div>
-        </div>
-        {salaryLoading && <p className="mt-3 text-sm text-[color:var(--muted)]">Updating salary delta ticker...</p>}
-        {salaryError && <p className="mt-3 text-sm text-[color:var(--accent-2)]">{salaryError}</p>}
-        {salaryDelta && (
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {salaryDelta.skill_deltas.slice(0, 8).map((skillRow) => (
-              <div key={skillRow.skill} className="rounded-lg border border-white/10 bg-black/25 p-3 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-white">{skillRow.skill}</p>
-                  <p className={skillRow.unlocked ? "font-semibold text-emerald-300" : "text-zinc-400"}>
-                    {skillRow.unlocked ? "Unlocked" : "Pending"}
-                  </p>
-                </div>
-                <p className="mt-1 text-[color:var(--muted)]">
-                  Delta: {skillRow.delta_usd >= 0 ? "+" : ""}
-                  {salaryFormatter.format(skillRow.delta_usd)} ({skillRow.source.replace(/_/g, " ")})
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="rounded-xl border border-[color:var(--border)] p-5">

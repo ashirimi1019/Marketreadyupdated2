@@ -21,6 +21,8 @@ const NAV_GROUPS = [
   { href: "/student/readiness", label: "Readiness", testId: "nav-readiness" },
   { href: "/student/onboarding", label: "Career Hub", testId: "nav-onboarding" },
   { href: "/student/guide", label: "Mission", testId: "nav-mission" },
+  { href: "/student/crc", label: "CRC", testId: "nav-crc" },
+  { href: "/student/resume-help", label: "Resume Help", testId: "nav-resume-help" },
   { href: "/student/interview", label: "Interview AI", testId: "nav-interview" },
   { href: "/student/checklist", label: "Tasks", testId: "nav-checklist" },
 ] as const;
