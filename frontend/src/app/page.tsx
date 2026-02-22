@@ -50,6 +50,61 @@ const TICKER_ITEMS = [
   "90-day agentic mission planning",
 ];
 
+const PLATFORM_OVERVIEW = [
+  {
+    title: "What we provide",
+    points: [
+      "A 0-100 Market Readiness Index with a clear component breakdown and gap priorities.",
+      "Skill Gap Auditor and Certification ROI guidance mapped to your target role.",
+      "Proof portfolio tracking, GitHub-backed evidence checks, and AI-shift stress simulation.",
+    ],
+  },
+  {
+    title: "How we provide it",
+    points: [
+      "We map your selected role to required skill standards using CareerOneStop.",
+      "We pull live market demand and salary momentum from Adzuna.",
+      "We compare required skills against your verified proofs and repo signals, then recalculate your score.",
+      "Every run returns freshness metadata, provider status, and source citations.",
+    ],
+  },
+  {
+    title: "APIs and systems used",
+    points: [
+      "Adzuna Jobs API for vacancy trend, salary benchmarks, and hiring company signals.",
+      "CareerOneStop Skills Matcher for role-to-skill requirements (with O*NET role mapping).",
+      "GitHub API for repository, language, and code-signal verification workflows.",
+      "Configurable AI provider (OpenAI or Groq) for guidance and proof-assist flows.",
+    ],
+  },
+] as const;
+
+const CALCULATION_DETAILS = [
+  {
+    title: "Core MRI Formula",
+    description: "MRI = (Federal Standards x 0.40) + (Market Demand x 0.30) + (Evidence Density x 0.30)",
+  },
+  {
+    title: "Federal Standards",
+    description: "70% non-negotiables + 30% strong signals, weighted by proficiency (Professional 1.0, Intermediate 0.75, Beginner 0.50).",
+  },
+  {
+    title: "Evidence Density",
+    description: "35% proof-type diversity + 35% proficiency quality + 15% certificate bonus + 15% GitHub profile signal.",
+  },
+  {
+    title: "Market Stress Formula",
+    description: "Stress score uses 40% skill overlap + 30% market trend + 30% evidence verification with 2027 scenario simulation.",
+  },
+] as const;
+
+const DATA_TRUST_POINTS = [
+  "Provider traceability: responses include source mode (live or snapshot fallback), provider status, and query details used.",
+  "Freshness controls: market snapshots use strict TTL windows so stale data is not silently treated as fresh.",
+  "Citation-backed scoring: each score run includes source-signal-value citations for skill overlap, market trend, and proof density.",
+  "Proof integrity: evidence is tied to submitted artifacts, verification status, and metadata instead of hidden manual overrides.",
+] as const;
+
 const QUICK_LINKS = [
   {
     title: "Market Mission",
@@ -323,6 +378,70 @@ export default function Home() {
           >
             See How It Works
           </a>
+        </div>
+      </section>
+
+      <section className="panel" id="methodology" data-testid="methodology-section">
+        <span className="badge">Methodology</span>
+        <h2 className="section-title mt-3">
+          What We Provide, How We Calculate It, and Why the Data Is Legitimate
+        </h2>
+        <p className="section-subtitle mt-3">
+          Market Ready combines federal skill standards, real vacancy signals, proof verification, and transparent formulas
+          so students can make decisions based on traceable evidence rather than guesswork.
+        </p>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          {PLATFORM_OVERVIEW.map((column) => (
+            <article
+              key={column.title}
+              className="rounded-2xl border p-5"
+              style={{ borderColor: "var(--border)", background: "rgba(61,109,255,0.06)" }}
+            >
+              <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>{column.title}</h3>
+              <ul className="mt-3 space-y-2 text-sm" style={{ color: "var(--muted)" }}>
+                {column.points.map((point) => (
+                  <li key={point} className="leading-relaxed">
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+
+        <div className="divider" />
+
+        <h3 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+          Calculation Logic
+        </h3>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {CALCULATION_DETAILS.map((item) => (
+            <article
+              key={item.title}
+              className="rounded-xl border p-4"
+              style={{ borderColor: "var(--border)", background: "rgba(8,12,30,0.55)" }}
+            >
+              <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{item.title}</p>
+              <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
+                {item.description}
+              </p>
+            </article>
+          ))}
+        </div>
+
+        <div
+          className="mt-6 rounded-2xl border p-5"
+          style={{ borderColor: "var(--border-hi)", background: "rgba(0,200,150,0.08)" }}
+        >
+          <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+            Data Integrity and Trust Signals
+          </h3>
+          <ul className="mt-3 space-y-2 text-sm" style={{ color: "var(--muted)" }}>
+            {DATA_TRUST_POINTS.map((point) => (
+              <li key={point} className="leading-relaxed">{point}</li>
+            ))}
+          </ul>
         </div>
       </section>
 
