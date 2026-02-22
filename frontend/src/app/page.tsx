@@ -406,13 +406,6 @@ export default function Home() {
           >
             Stress-Test My Career
           </Link>
-          <a
-            href="#future-shock"
-            className="cta cta-secondary"
-            data-testid="hero-how-it-works-btn"
-          >
-            See How It Works
-          </a>
         </div>
       </section>
 

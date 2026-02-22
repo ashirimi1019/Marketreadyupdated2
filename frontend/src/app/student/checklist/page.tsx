@@ -245,7 +245,7 @@ function ChecklistPageContent() {
     setMappingEvidence(true);
     setMappingMessage(null);
     try {
-      const result = await apiSend<EvidenceMapResponse>("/ai/evidence-map", {
+      const result = await apiSend<EvidenceMapResponse>("/user/ai/evidence-map", {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({}),

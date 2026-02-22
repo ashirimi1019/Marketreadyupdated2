@@ -152,7 +152,6 @@ export default function NavBar() {
   const displayName = formatDisplayName(username);
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -232,16 +231,6 @@ export default function NavBar() {
           ))}
         </nav>
 
-        {/* Mobile toggle */}
-        <button
-          className="nav-pill md:hidden"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Toggle menu"
-          data-testid="nav-mobile-toggle"
-        >
-          Menu
-        </button>
-
         <div className="nav-auth-meta">
           <ThemeToggle />
           <NotificationBell onOpen={() => setNotifOpen(v => !v)} />
@@ -255,24 +244,21 @@ export default function NavBar() {
           </button>
         </div>
 
-        {/* Mobile dropdown */}
-        {mobileOpen && (
-          <div className="w-full md:hidden pt-2 pb-1 border-t border-[color:var(--border)] mt-2">
-            <nav className="flex flex-col gap-1" data-testid="nav-mobile-menu">
-              {NAV_GROUPS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  data-testid={`mobile-${item.testId}`}
-                  className="px-3 py-2 rounded-lg text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:bg-[rgba(61,109,255,0.08)] transition-colors"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        )}
+        {/* Mobile nav */}
+        <div className="w-full md:hidden pt-2 pb-1 border-t border-[color:var(--border)] mt-2">
+          <nav className="flex flex-col gap-1" data-testid="nav-mobile-menu">
+            {NAV_GROUPS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                data-testid={`mobile-${item.testId}`}
+                className="px-3 py-2 rounded-lg text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:bg-[rgba(61,109,255,0.08)] transition-colors"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </header>
 
       {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}

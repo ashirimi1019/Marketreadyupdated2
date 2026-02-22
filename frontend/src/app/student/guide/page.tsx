@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiGet, apiSend } from "@/lib/api";
-import { getErrorMessage } from "@/lib/errors";
+import { getErrorMessage, isNotFound } from "@/lib/errors";
 import { useSession } from "@/lib/session";
 import type {
   AICareerOrchestrator,
@@ -44,6 +44,55 @@ function polarPoint(center: number, radius: number, angle: number): { x: number;
   return {
     x: center + radius * Math.cos(angle),
     y: center + radius * Math.sin(angle),
+  };
+}
+
+function toTaskLabel(task: string): string {
+  const cleaned = String(task || "")
+    .replace(/^week\s*\d+:\s*/i, "")
+    .split(/[:|-]/)[0]
+    .trim();
+  if (!cleaned) return "Execution milestone";
+  if (cleaned.length > 56) return `${cleaned.slice(0, 53)}...`;
+  return cleaned;
+}
+
+function buildSalaryDeltaFallback(
+  baseSalaryHint: number | null | undefined,
+  completedTasks: string[],
+  allTasks: string[],
+  queryUsed: string,
+  locationUsed: string
+): SalaryDeltaProjection {
+  const baseSalary = Math.max(45000, Math.round(Number(baseSalaryHint || 78000)));
+  const trackedLabels = Array.from(
+    new Set((allTasks.length ? allTasks : completedTasks).map(toTaskLabel).filter(Boolean))
+  ).slice(0, 8);
+  const completedSet = new Set(completedTasks.map(toTaskLabel));
+  const perSkillDelta = Math.max(900, Math.round(baseSalary * 0.018));
+
+  const skillRows = trackedLabels.map((skill) => ({
+    skill,
+    unlocked: completedSet.has(skill),
+    delta_usd: perSkillDelta,
+    source: "mission_estimate",
+  }));
+
+  const potential = skillRows
+    .filter((row) => row.unlocked)
+    .reduce((sum, row) => sum + row.delta_usd, 0);
+
+  return {
+    base_salary_estimate: baseSalary,
+    projected_salary_estimate: baseSalary + potential,
+    potential_value_added: potential,
+    unlocked_skill_count: skillRows.filter((row) => row.unlocked).length,
+    tracked_skill_count: skillRows.length,
+    source_mode: "estimated_fallback",
+    adzuna_query_used: queryUsed || null,
+    adzuna_location_used: locationUsed || null,
+    skill_deltas: skillRows,
+    generated_at: new Date().toISOString(),
   };
 }
 
@@ -149,7 +198,6 @@ export default function StudentAiGuidePage() {
   const [kanbanTasks, setKanbanTasks] = useState<MissionTask[]>([]);
   const [tipSeed, setTipSeed] = useState(0);
 
-  const [futureYear, setFutureYear] = useState(2026);
   const [salaryDelta, setSalaryDelta] = useState<SalaryDeltaProjection | null>(null);
   const [salaryLoading, setSalaryLoading] = useState(false);
   const [salaryError, setSalaryError] = useState<string | null>(null);
@@ -412,9 +460,21 @@ export default function StudentAiGuidePage() {
         `[ROI] Potential value +${salaryFormatter.format(data.potential_value_added)} from ${data.unlocked_skill_count} unlocked skills.`
       );
     } catch (err) {
-      setSalaryError(getErrorMessage(err) || "Salary delta unavailable.");
-      setSalaryDelta(null);
-      appendLogicLog("[ROI] Salary delta stream unavailable.");
+      const fallback = buildSalaryDeltaFallback(
+        stressResult?.salary_average,
+        completedTasks,
+        allTasks,
+        targetJob.trim() || "software engineer",
+        location.trim() || "united states"
+      );
+      setSalaryDelta(fallback);
+      if (isNotFound(err)) {
+        setSalaryError("Live salary delta endpoint is not deployed yet. Showing local estimate.");
+        appendLogicLog("[ROI] Salary delta endpoint not found; using local estimate model.");
+      } else {
+        setSalaryError("Salary delta service unavailable. Showing local estimate.");
+        appendLogicLog("[ROI] Salary delta service unavailable; using local estimate model.");
+      }
     } finally {
       setSalaryLoading(false);
     }
@@ -423,10 +483,6 @@ export default function StudentAiGuidePage() {
   const mriScore = stressResult?.score ?? 0;
   const mri = mriTheme(mriScore);
   const gaugePct = Math.max(0, Math.min(100, mriScore));
-  const simulation = stressResult?.simulation_2027 ?? null;
-  const projectedScore = futureYear === 2027 && simulation ? simulation.projected_score : mriScore;
-  const projectedDelta = futureYear === 2027 && simulation ? simulation.delta : 0;
-  const projectedRisk = futureYear === 2027 && simulation ? simulation.risk_level : "baseline";
 
   const mission = useMemo(
     () => ((orchestratorResult?.mission_dashboard as Record<string, unknown>) || {}),
@@ -452,15 +508,6 @@ export default function StudentAiGuidePage() {
       }),
     []
   );
-  const volatilityMax = useMemo(
-    () =>
-      Math.max(
-        1,
-        ...(stressResult?.market_volatility_points?.map((point) => point.y).filter((value) => Number.isFinite(value)) || [1])
-      ),
-    [stressResult]
-  );
-
   useEffect(() => {
     if (!isLoggedIn || !orchestratorResult || weekly.length === 0) return;
     const completedTasks = weekly.filter((item) => weeklyChecks[item]);
@@ -946,38 +993,6 @@ export default function StudentAiGuidePage() {
                 <p className="mt-1 text-xs text-amber-300">
                   {formatSnapshotFreshness(stressResult.snapshot_timestamp, stressResult.snapshot_age_minutes)}
                 </p>
-              )}
-            </div>
-
-            <div className="rounded-lg border border-[color:var(--border)] p-4">
-              <p className="text-sm font-semibold text-white">Market Volatility Index (Live Adzuna)</p>
-              <div className="mt-3 flex h-20 items-end gap-1">
-                {stressResult.market_volatility_points.slice(-12).map((point, idx) => (
-                  <div
-                    key={`${point.x}-${idx}`}
-                    className="w-3 rounded-t bg-[color:var(--accent-2)]/70"
-                    style={{ height: `${Math.max(8, Math.min(88, (point.y / volatilityMax) * 88))}%` }}
-                  />
-                ))}
-              </div>
-              <label className="mt-4 block text-sm text-[color:var(--muted)]">
-                2027 AI Automation Shift ({futureYear})
-                <input className="mt-2 w-full" type="range" min={2026} max={2027} value={futureYear} onChange={(e) => setFutureYear(Number(e.target.value))} />
-              </label>
-              <p className="mt-2 text-sm text-[color:var(--muted)]">
-                Projected MRI: <span className="font-semibold text-white">{projectedScore.toFixed(1)}</span>
-                {futureYear === 2027 && (
-                  <span className={`ml-3 font-semibold ${projectedDelta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    Delta {projectedDelta >= 0 ? "+" : ""}
-                    {projectedDelta.toFixed(1)} | Risk {projectedRisk.toUpperCase()}
-                  </span>
-                )}
-              </p>
-              {futureYear === 2027 && simulation && (
-                <div className="mt-2 grid gap-2 text-xs text-[color:var(--muted)] md:grid-cols-2">
-                  <p>At risk skills: {simulation.at_risk_skills.join(", ") || "none detected"}</p>
-                  <p>Growth skills: {simulation.growth_skills.join(", ") || "none detected"}</p>
-                </div>
               )}
             </div>
 
