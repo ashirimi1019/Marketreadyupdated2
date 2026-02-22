@@ -516,6 +516,31 @@ input:focus, select:focus, textarea:focus {
   gap: 12px;
 }
 
+:root[data-theme="light"] .panel.hero-stage {
+  background:
+    radial-gradient(1200px 460px at 50% -25%, rgba(48, 86, 211, 0.14), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(247, 250, 255, 0.95) 100%);
+  border-color: rgba(48, 86, 211, 0.22);
+}
+
+:root[data-theme="light"] .hero-headline-gradient {
+  background: linear-gradient(135deg, #1f3f95 0%, #2e57c9 45%, #4f6fe3 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:root[data-theme="light"] .hero-emphasis {
+  background: linear-gradient(120deg, #f97316 0%, #e11d48 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:root[data-theme="light"] .hero-copy {
+  color: #334155;
+}
+
 /* ─── SECTIONS ───────────────────────────────────────────────── */
 .section-title {
   font-size: clamp(22px, 3.2vw, 32px);
