@@ -188,9 +188,9 @@ export default function NavBar() {
         </div>
 
         <nav className="nav-links nav-links-main" data-testid="nav-links-guest">
-          <Link href="/#how-it-works" data-testid="nav-how-it-works">How It Works</Link>
-          <Link href="/#outcomes" data-testid="nav-outcomes">Outcomes</Link>
-          <Link href="/register" data-testid="nav-start-plan">Start Plan</Link>
+          <Link href="/#audit-engine" data-testid="nav-career-check">Career Check</Link>
+          <Link href="/#signals" data-testid="nav-proof-vault">Proof Vault</Link>
+          <Link href="/student/onboarding" data-testid="nav-my-plan">My Plan</Link>
         </nav>
 
         <div className="nav-auth-meta nav-auth-meta-guest">
