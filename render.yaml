@@ -48,7 +48,7 @@ services:
     plan: free
     rootDir: frontend
     buildCommand: yarn install --frozen-lockfile && yarn build
-    startCommand: yarn start
+    startCommand: node_modules/.bin/next start -p $PORT
     envVars:
       - key: NODE_ENV
         value: production
