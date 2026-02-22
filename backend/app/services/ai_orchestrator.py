@@ -15,7 +15,7 @@ from app.services.ai import (
 )
 from app.services.market_stress import build_user_resume_summary, compute_market_stress_test
 
-PIVOT_THRESHOLD_DELTA = 15.0
+PIVOT_MIN_IMPROVEMENT_DELTA = 0.1
 PIVOT_ROLE_CANDIDATES = (
     "backend engineer",
     "cloud security engineer",
@@ -112,11 +112,11 @@ def _evaluate_pivot(
             best_delta = delta
             best_job = candidate
 
-    if best_delta >= PIVOT_THRESHOLD_DELTA:
+    if best_delta >= PIVOT_MIN_IMPROVEMENT_DELTA:
         reason = f"Pivot applied: {best_job} demand is +{best_delta:.1f} points above {base_target_job}."
         return best_job, True, reason, round(best_delta, 1)
 
-    reason = f"Pivot not applied: best alternative improved demand by only +{best_delta:.1f} (< {PIVOT_THRESHOLD_DELTA:.0f})."
+    reason = f"Pivot not applied: no alternative role showed a meaningful demand improvement over {base_target_job}."
     return base_target_job, False, reason, round(best_delta, 1)
 
 
