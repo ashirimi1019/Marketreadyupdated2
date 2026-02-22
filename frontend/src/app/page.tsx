@@ -105,6 +105,33 @@ const DATA_TRUST_POINTS = [
   "Proof integrity: evidence is tied to submitted artifacts, verification status, and metadata instead of hidden manual overrides.",
 ] as const;
 
+const BENEFIT_PROMISES = [
+  {
+    title: "Increase your job readiness score",
+    detail:
+      "Prioritize what to improve first and track measurable readiness gains as your proofs and skills grow.",
+    href: "/student/readiness",
+    cta: "View Readiness",
+    testId: "benefit-readiness",
+  },
+  {
+    title: "Get personalized certification recommendations",
+    detail:
+      "Use role-aware ROI guidance to choose certificates based on demand, salary impact, budget, and effort.",
+    href: "#cert-roi",
+    cta: "Compare Cert ROI",
+    testId: "benefit-certifications",
+  },
+  {
+    title: "Build a 90-day career plan",
+    detail:
+      "Turn goals into weekly execution with a guided plan tied to real market signals and your target pathway.",
+    href: "/student/guide",
+    cta: "Open 90-Day Plan",
+    testId: "benefit-90-day-plan",
+  },
+] as const;
+
 const QUICK_LINKS = [
   {
     title: "Market Mission",
@@ -445,6 +472,44 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="panel" id="benefits" data-testid="benefits-section">
+        <span className="badge">How We Help</span>
+        <h2 className="section-title mt-3">
+          Outcomes You Can Expect
+        </h2>
+        <p className="section-subtitle mt-3">
+          We do not just show tools. We help you improve measurable outcomes that move you closer to getting hired.
+        </p>
+
+        <div className="action-grid mt-6">
+          {BENEFIT_PROMISES.map((benefit) => {
+            const isStudentRoute = benefit.href.startsWith("/student/");
+            const benefitHref = !isLoggedIn && isStudentRoute ? "/register" : benefit.href;
+            const benefitCta = !isLoggedIn && isStudentRoute ? "Start Your Plan" : benefit.cta;
+            return (
+              <article
+                key={benefit.title}
+                className="action-card"
+                data-testid={benefit.testId}
+                style={{ background: "rgba(61,109,255,0.08)", borderColor: "var(--border-hi)" }}
+              >
+                <h3 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+                  {benefit.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
+                  {benefit.detail}
+                </p>
+                <div className="mt-4">
+                  <Link href={benefitHref} className="cta cta-secondary">
+                    {benefitCta}
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
       {/* 2027 Simulation */}
       <section
         id="future-shock"
@@ -573,7 +638,7 @@ export default function Home() {
       </section>
 
       {/* Certification ROI */}
-      <section className="panel" data-testid="cert-roi-section">
+      <section className="panel" id="cert-roi" data-testid="cert-roi-section">
         <div className="auditor-header">
           <div className="auditor-icon">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--accent)" }}>
