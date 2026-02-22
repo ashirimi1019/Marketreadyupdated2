@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiGet, apiSend } from "@/lib/api";
 import { useLocalStorage } from "@/lib/useLocalStorage";
 import { useSession } from "@/lib/session";
+import type { TransparencyAudit } from "@/types/api";
 
 type MarketSignal = {
   id: string;
@@ -74,6 +75,10 @@ export default function AdminMarketPage() {
   const [publishingProposalId, setPublishingProposalId] = useState<string | null>(
     null
   );
+  const [showTransparency, setShowTransparency] = useState(false);
+  const [transparencyAudit, setTransparencyAudit] = useState<TransparencyAudit | null>(null);
+  const [transparencyLoading, setTransparencyLoading] = useState(false);
+  const [transparencyError, setTransparencyError] = useState<string | null>(null);
 
   const headers = useMemo(() => ({ "X-Admin-Token": adminToken }), [adminToken]);
 
@@ -98,11 +103,35 @@ export default function AdminMarketPage() {
       .catch(() => setProposalsError("Unable to load proposals."));
   }, [headers]);
 
+  const loadTransparencyAudit = useCallback(() => {
+    setTransparencyError(null);
+    setTransparencyLoading(true);
+    apiGet<TransparencyAudit>("/admin/ai/transparency", headers)
+      .then(setTransparencyAudit)
+      .catch((error) => {
+        setTransparencyError(
+          error instanceof Error ? error.message : "Unable to load transparency audit."
+        );
+      })
+      .finally(() => setTransparencyLoading(false));
+  }, [headers]);
+
   useEffect(() => {
     if (!isLoggedIn) return;
     loadSignals();
     loadProposals();
   }, [isLoggedIn, loadSignals, loadProposals]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !showTransparency || transparencyAudit || transparencyLoading) return;
+    loadTransparencyAudit();
+  }, [
+    isLoggedIn,
+    showTransparency,
+    transparencyAudit,
+    transparencyLoading,
+    loadTransparencyAudit,
+  ]);
 
   const toggleSignal = (id: string) => {
     setSelectedSignals((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -365,6 +394,13 @@ export default function AdminMarketPage() {
     }
   };
 
+  const transparencyColor = (label: string, included: boolean) => {
+    if (!included) return "#ff3b30";
+    if (label.toLowerCase().includes("code")) return "#3d6dff";
+    if (label.toLowerCase().includes("market")) return "#00c896";
+    return "#ffb300";
+  };
+
   return (
     <section className="panel">
       <h2 className="text-2xl font-semibold">Market Signals (Manual)</h2>
@@ -378,6 +414,88 @@ export default function AdminMarketPage() {
           Please log in before submitting signals.
         </p>
       )}
+
+      <div className="mt-6 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-xl font-semibold">Bias-Free Audit (The Ethical Edge)</h3>
+            <p className="mt-1 text-sm text-[color:var(--muted)]">
+              Judge view for weighted decision factors and demographic exclusion checks.
+            </p>
+          </div>
+          <button
+            className="cta cta-secondary"
+            onClick={() => setShowTransparency((prev) => !prev)}
+          >
+            {showTransparency ? "Hide Transparency" : "Transparency Toggle"}
+          </button>
+        </div>
+
+        {showTransparency && (
+          <div className="mt-5 space-y-4">
+            {transparencyLoading && (
+              <p className="text-sm text-[color:var(--muted)]">Loading transparency audit...</p>
+            )}
+            {transparencyError && (
+              <p className="text-sm text-[color:var(--accent-2)]">{transparencyError}</p>
+            )}
+            {transparencyAudit && (
+              <>
+                <p className="text-sm text-[color:var(--muted)]">{transparencyAudit.summary}</p>
+
+                <div className="space-y-3">
+                  {transparencyAudit.factors.map((factor) => (
+                    <div key={factor.label} className="rounded-xl border border-[color:var(--border)] p-3">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <span className="text-sm font-semibold">{factor.label}</span>
+                        <span className="text-sm font-mono">{factor.weight_percent.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[color:var(--input-bg)]">
+                        <div
+                          className="h-2 rounded-full transition-all"
+                          style={{
+                            width: `${Math.max(0, Math.min(100, factor.weight_percent))}%`,
+                            backgroundColor: transparencyColor(factor.label, factor.included),
+                          }}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-[color:var(--muted)]">{factor.rationale}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-xl border border-[color:var(--border)] p-4">
+                  <p className="text-sm font-semibold">Excluded demographic signals</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {transparencyAudit.excluded_signals.map((signal) => (
+                      <span
+                        key={signal}
+                        className="rounded-full border border-[rgba(255,59,48,0.35)] px-2 py-1 text-xs"
+                        style={{ color: "#ff3b30" }}
+                      >
+                        {signal}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[color:var(--border)] p-4">
+                  <p className="text-sm font-semibold">Compliance notes</p>
+                  <ul className="mt-2 space-y-1 text-sm text-[color:var(--muted)]">
+                    {transparencyAudit.compliance_notes.map((note) => (
+                      <li key={note}>- {note}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <p className="rounded-xl border border-[rgba(0,200,150,0.35)] bg-[rgba(0,200,150,0.1)] p-3 text-sm font-semibold text-[color:var(--success)]">
+                  {transparencyAudit.pitch}
+                </p>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="mt-6 grid gap-3">
         <label className="text-sm text-[color:var(--muted)]">

@@ -497,6 +497,23 @@ class AdminAiSummaryOut(BaseModel):
     rationale_draft: Optional[str] = None
 
 
+class TransparencyFactorOut(BaseModel):
+    label: str
+    weight_percent: float
+    included: bool = True
+    rationale: str
+
+
+class TransparencyAuditOut(BaseModel):
+    framework_version: str
+    title: str
+    summary: str
+    pitch: str
+    factors: List[TransparencyFactorOut] = Field(default_factory=list)
+    excluded_signals: List[str] = Field(default_factory=list)
+    compliance_notes: List[str] = Field(default_factory=list)
+
+
 class AdminPathwayIn(BaseModel):
     name: str
     description: Optional[str] = None

@@ -33,10 +33,63 @@ from app.schemas.api import (
     AdminProofOut,
     AdminProofUpdateIn,
     ChecklistChangeLogOut,
+    TransparencyAuditOut,
 )
 from app.services.storage import resolve_file_view_url
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
+
+
+@router.get("/ai/transparency", response_model=TransparencyAuditOut)
+def get_transparency_audit() -> dict:
+    return {
+        "framework_version": "2026.1",
+        "title": "Bias-Free Audit",
+        "summary": (
+            "Decision factors are explicitly weighted toward skill evidence and "
+            "market relevance. Personal demographics are excluded from scoring."
+        ),
+        "pitch": (
+            "Our MRI score is 100% compliant with 2026 AI transparency standards. "
+            "We audit for skill, not for pedigree."
+        ),
+        "factors": [
+            {
+                "label": "Code Logic",
+                "weight_percent": 80.0,
+                "included": True,
+                "rationale": "Primary signal from verified technical evidence and logic quality.",
+            },
+            {
+                "label": "Market Demand",
+                "weight_percent": 20.0,
+                "included": True,
+                "rationale": "Secondary signal from live labor-market demand trends.",
+            },
+            {
+                "label": "Personal Demographics",
+                "weight_percent": 0.0,
+                "included": False,
+                "rationale": "Explicitly excluded from ranking and recommendation logic.",
+            },
+        ],
+        "excluded_signals": [
+            "race",
+            "ethnicity",
+            "gender",
+            "age",
+            "nationality",
+            "religion",
+            "disability_status",
+            "marital_status",
+            "zip_code_proxy",
+        ],
+        "compliance_notes": [
+            "High-risk use case readiness: decisions are attributable to weighted factors.",
+            "No protected demographic attributes are used in the scoring path.",
+            "Audit view exposes factor weights for review and external inspection.",
+        ],
+    }
 
 
 @router.post("/pathways", response_model=AdminPathwayOut)

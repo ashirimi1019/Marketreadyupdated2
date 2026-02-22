@@ -237,6 +237,23 @@ export type MarketProposal = {
   published_by?: string | null;
 };
 
+export type TransparencyFactor = {
+  label: string;
+  weight_percent: number;
+  included: boolean;
+  rationale: string;
+};
+
+export type TransparencyAudit = {
+  framework_version: string;
+  title: string;
+  summary: string;
+  pitch: string;
+  factors: TransparencyFactor[];
+  excluded_signals: string[];
+  compliance_notes: string[];
+};
+
 // ── Admin (Skill) ────────────────────────────────────────────────────
 
 export type Skill = {
