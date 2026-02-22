@@ -17,6 +17,14 @@ type Notification = {
   created_at: string;
 };
 
+const NAV_GROUPS = [
+  { href: "/student/readiness", label: "Readiness", testId: "nav-readiness" },
+  { href: "/student/onboarding", label: "Career Hub", testId: "nav-onboarding" },
+  { href: "/student/guide", label: "Mission", testId: "nav-mission" },
+  { href: "/student/interview", label: "Interview AI", testId: "nav-interview" },
+  { href: "/student/checklist", label: "Tasks", testId: "nav-checklist" },
+] as const;
+
 function NotificationBell({ onOpen }: { onOpen: () => void }) {
   const [unread, setUnread] = useState(0);
 
@@ -212,15 +220,16 @@ export default function NavBar() {
 
         {/* Desktop nav */}
         <nav className="nav-links nav-links-main hidden md:flex overflow-x-auto" style={{ scrollbarWidth: "none" }} data-testid="nav-links-auth">
-          <Link href="/student/profile" data-testid="nav-profile" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>Profile</Link>
-          <Link href="/student/checklist" data-testid="nav-checklist" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>Tasks</Link>
-          <Link href="/student/readiness" data-testid="nav-readiness" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>MRI Score</Link>
-          <Link href="/student/kanban" data-testid="nav-kanban" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>90-Day Plan</Link>
-          <Link href="/student/onboarding" data-testid="nav-onboarding" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>My Plan</Link>
-          <Link href="/student/proofs" data-testid="nav-proofs" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>Proof Vault</Link>
-          <Link href="/student/interview" data-testid="nav-interview" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>Interview AI</Link>
-          <Link href="/student/resume-architect" data-testid="nav-skill-gap" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>Skill Gap</Link>
-          <Link href="/student/guide" data-testid="nav-mission" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>Market Mission</Link>
+          {NAV_GROUPS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              data-testid={item.testId}
+              style={{ fontSize: "12px", whiteSpace: "nowrap" }}
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
         {/* Mobile toggle */}
@@ -250,24 +259,15 @@ export default function NavBar() {
         {mobileOpen && (
           <div className="w-full md:hidden pt-2 pb-1 border-t border-[color:var(--border)] mt-2">
             <nav className="flex flex-col gap-1" data-testid="nav-mobile-menu">
-              {[
-                ["/student/profile", "Profile"],
-                ["/student/checklist", "My Tasks"],
-                ["/student/readiness", "MRI Score"],
-                ["/student/kanban", "90-Day Kanban"],
-                ["/student/onboarding", "My Plan"],
-                ["/student/proofs", "Proof Vault"],
-                ["/student/interview", "Interview AI"],
-                ["/student/resume-architect", "Skill Gap Builder"],
-                ["/student/guide", "Market Mission"],
-              ].map(([href, label]) => (
+              {NAV_GROUPS.map((item) => (
                 <Link
-                  key={href}
-                  href={href}
+                  key={item.href}
+                  href={item.href}
+                  data-testid={`mobile-${item.testId}`}
                   className="px-3 py-2 rounded-lg text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:bg-[rgba(61,109,255,0.08)] transition-colors"
                   onClick={() => setMobileOpen(false)}
                 >
-                  {label}
+                  {item.label}
                 </Link>
               ))}
             </nav>
