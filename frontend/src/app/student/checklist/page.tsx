@@ -250,7 +250,7 @@ function ChecklistPageContent() {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const mapped = result?.mapped_count ?? 0;
+      const mapped = result?.matched_count ?? 0;
       setMappingMessage(mapped > 0 ? `OpenAI Evidence Mapper applied: ${mapped} requirement(s) auto-satisfied from your evidence context.` : "No new requirements could be auto-satisfied. Keep adding evidence.");
       loadProofs();
     } catch (err) {
