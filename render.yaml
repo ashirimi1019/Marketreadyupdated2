@@ -1,23 +1,25 @@
 services:
+  # ─── Backend API ────────────────────────────────────────────
   - type: web
     name: marketready-api
     runtime: python
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: bash -lc "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    startCommand: >-
+      alembic upgrade head &&
+      python -m app.seed &&
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /meta/health
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: marketready-db
           property: connectionString
-      - key: ADMIN_TOKEN
-        sync: false
       - key: AUTH_SECRET
-        sync: false
-      - key: CORS_ORIGINS
-        sync: false
+        generateValue: true
+      - key: ADMIN_TOKEN
+        generateValue: true
       - key: AI_ENABLED
         value: "true"
       - key: AUTH_REQUIRE_EMAIL_VERIFICATION
@@ -28,9 +30,34 @@ services:
         sync: false
       - key: ADZUNA_APP_KEY
         sync: false
+      - key: CAREERONESTOP_USER_ID
+        sync: false
+      - key: CAREERONESTOP_TOKEN
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
       - key: PUBLIC_APP_BASE_URL
         sync: false
+      - key: PYTHONPATH
+        value: "/opt/render/project/src/backend"
 
+  # ─── Frontend ───────────────────────────────────────────────
+  - type: web
+    name: marketready-frontend
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    startCommand: yarn start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NEXT_PUBLIC_API_BASE
+        sync: false
+
+# ─── Database ─────────────────────────────────────────────────
 databases:
   - name: marketready-db
     plan: free
