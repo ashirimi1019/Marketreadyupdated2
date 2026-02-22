@@ -50,6 +50,44 @@ const TICKER_ITEMS = [
   "90-day agentic mission planning",
 ];
 
+const OUTCOME_CARDS = [
+  {
+    title: "Increase your readiness score with clear priorities.",
+    detail: "Run a focused gap assessment to see exactly what to improve first.",
+    href: "/#audit-engine",
+    testId: "outcome-readiness",
+  },
+  {
+    title: "Get personalized certification recommendations.",
+    detail: "Compare ROI, effort, and market demand before investing time and money.",
+    href: "/#cert-roi",
+    testId: "outcome-cert-recommendations",
+  },
+  {
+    title: "Build and execute a 90-day career plan.",
+    detail: "Follow weekly milestones so every application points to stronger proof.",
+    href: "/register",
+    testId: "outcome-90-day-plan",
+  },
+] as const;
+
+const HOW_IT_WORKS_STEPS = [
+  {
+    step: "1) Assess your gap",
+    detail: "Identify missing skills using labor-market demand and readiness scoring signals.",
+  },
+  {
+    step: "2) Build proof recruiters trust",
+    detail: "Turn projects and tasks into verified evidence inside your proof portfolio.",
+  },
+  {
+    step: "3) Follow a 90-day execution plan",
+    detail: "Stay consistent with guided weekly actions mapped to your target role.",
+  },
+] as const;
+
+const CREDIBILITY_BADGES = ["AWS", "Cisco", "CompTIA", "AI insights", "Industry trend data"] as const;
+
 const QUICK_LINKS = [
   {
     title: "Market Mission",
@@ -273,30 +311,37 @@ export default function Home() {
 
   return (
     <main className="landing-stack" data-testid="home-page">
-      {/* Live ticker */}
-      <section className="market-ticker" aria-label="Live market signals" data-testid="market-ticker">
-        <div className="market-ticker-track">
-          {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
-            <span key={`${item}-${i}`} className="market-ticker-item">{item}</span>
-          ))}
-        </div>
-      </section>
+      {isLoggedIn && (
+        <section className="market-ticker" aria-label="Live market signals" data-testid="market-ticker">
+          <div className="market-ticker-track">
+            {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
+              <span key={`${item}-${i}`} className="market-ticker-item">{item}</span>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Hero */}
       <section className="panel hero-stage" data-testid="hero-section">
+        <span className="badge" data-testid="hero-eyebrow">
+          For Final-Year Students and Recent Graduates
+        </span>
         <div className="hero-signal-pill" data-testid="hero-live-signal">
-          Live Market Signals Active
+          Career readiness powered by live market demand
         </div>
 
         <h1 className="hero-headline">
-          <span className="hero-headline-gradient">Are You Actually</span>{" "}
-          <span className="hero-emphasis">Hireable</span>
-          <span className="hero-headline-gradient"> — or Just Hopeful?</span>
+          <span className="hero-headline-gradient">Graduated and feeling behind?</span>{" "}
+          <span className="hero-headline-gradient">Build a job-ready plan in 90 days.</span>
         </h1>
 
         <p className="hero-copy" data-testid="hero-copy">
-          We combine live GitHub engineering signals with real hiring demand data,
-          then stress-test your career readiness against the next AI market shift.
+          Market Ready helps you find skill gaps, build proof, and follow a weekly plan tied to
+          real hiring demand.
+        </p>
+
+        <p className="mt-4 text-base md:text-lg" style={{ color: "var(--muted)" }} data-testid="hero-emotional-bridge">
+          If applications feel random right now, this gives you a clear next move each week.
         </p>
 
         {isLoggedIn && (
@@ -310,14 +355,14 @@ export default function Home() {
 
         <div className="hero-actions">
           <Link
-            href={isLoggedIn ? "/student/guide" : "/login"}
+            href={isLoggedIn ? "/student/guide" : "/register"}
             className="cta"
             data-testid="hero-stress-test-btn"
           >
-            Stress-Test My Career
+            {isLoggedIn ? "Continue Your Career Readiness Plan" : "Start Your Career Readiness Plan"}
           </Link>
           <a
-            href="#future-shock"
+            href="#how-it-works"
             className="cta cta-secondary"
             data-testid="hero-how-it-works-btn"
           >
@@ -325,6 +370,67 @@ export default function Home() {
           </a>
         </div>
       </section>
+
+      {!isLoggedIn && (
+        <>
+          <section className="panel" id="outcomes" data-testid="outcomes-section">
+            <h2 className="section-title">What You Get</h2>
+            <p className="section-subtitle mt-3">
+              Move from uncertainty to a clear plan with outcomes tied to hiring demand.
+            </p>
+            <div className="action-grid mt-6">
+              {OUTCOME_CARDS.map((card) => (
+                <Link key={card.title} href={card.href} className="action-card group" data-testid={card.testId}>
+                  <h3 className="font-semibold text-base" style={{ color: "var(--foreground)" }}>
+                    {card.title}
+                  </h3>
+                  <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+                    {card.detail}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel" id="how-it-works" data-testid="how-it-works-section">
+            <h2 className="section-title">How It Works</h2>
+            <p className="section-subtitle mt-3">
+              A simple workflow that turns effort into recruiter-ready outcomes.
+            </p>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {HOW_IT_WORKS_STEPS.map((item) => (
+                <article
+                  key={item.step}
+                  className="rounded-2xl border p-5"
+                  style={{ borderColor: "var(--border)", background: "rgba(61,109,255,0.06)" }}
+                >
+                  <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>{item.step}</h3>
+                  <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{item.detail}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel" data-testid="credibility-strip">
+            <p className="text-sm md:text-base" style={{ color: "var(--muted)" }}>
+              AI-powered guidance backed by labor-market trends and proof verification.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {CREDIBILITY_BADGES.map((badge) => (
+                <span key={badge} className="badge">{badge}</span>
+              ))}
+            </div>
+          </section>
+
+          <section className="market-ticker" aria-label="Live market signals" data-testid="market-ticker">
+            <div className="market-ticker-track">
+              {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
+                <span key={`${item}-${i}`} className="market-ticker-item">{item}</span>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
 
       {/* 2027 Simulation */}
       <section
@@ -388,7 +494,7 @@ export default function Home() {
             </svg>
           </div>
           <div>
-            <h2 className="section-title">Skill Gap Closing Auditor</h2>
+            <h2 className="section-title">Gap Assessment</h2>
             <p className="section-subtitle mt-1">
               Convert evidence context into concrete skill-gap actions tied to live demand.
             </p>
@@ -454,7 +560,7 @@ export default function Home() {
       </section>
 
       {/* Certification ROI */}
-      <section className="panel" data-testid="cert-roi-section">
+      <section className="panel" id="cert-roi" data-testid="cert-roi-section">
         <div className="auditor-header">
           <div className="auditor-icon">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--accent)" }}>
@@ -576,7 +682,7 @@ export default function Home() {
       {/* Proof Vault Stats */}
       <section className="panel vault-stage" id="signals" data-testid="vault-section">
         <div className="vault-head">
-          <h2 className="section-title">The Proof Vault</h2>
+          <h2 className="section-title">Proof Portfolio</h2>
           <p className="section-subtitle">Where skills become evidence and readiness becomes measurable.</p>
         </div>
 
