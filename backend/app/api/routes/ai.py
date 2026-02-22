@@ -23,6 +23,10 @@ from app.schemas.api import (
     MarketStressTestOut,
     RepoProofCheckerIn,
     RepoProofCheckerOut,
+    AiCrucibleIn,
+    AiCrucibleOut,
+    SalaryDeltaIn,
+    SalaryDeltaOut,
     AICareerOrchestratorIn,
     AICareerOrchestratorOut,
     AiInterviewSessionIn,
@@ -39,6 +43,10 @@ from app.services.ai import (
     generate_admin_summary,
     log_ai_feedback,
     sync_evidence_requirement_matches,
+)
+from app.services.agentic_features import (
+    evaluate_crucible_response,
+    build_salary_delta_projection,
 )
 from app.services.ai_suite import (
     generate_if_i_were_you,
@@ -209,6 +217,48 @@ def student_repo_proof_checker(
             location=payload.location,
             repo_url=payload.repo_url,
             proof_id=str(payload.proof_id) if payload.proof_id else None,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/user/ai/proof-crucible", response_model=AiCrucibleOut)
+def student_proof_crucible(
+    payload: AiCrucibleIn,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    ai_rate_limiter.check(f"user:{user_id}:proof-crucible")
+    try:
+        return evaluate_crucible_response(
+            db,
+            user_id=user_id,
+            answer=payload.answer,
+            target_role=payload.target_role,
+            location=payload.location,
+            scenario_id=payload.scenario_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/user/ai/salary-delta", response_model=SalaryDeltaOut)
+def student_salary_delta_projection(
+    payload: SalaryDeltaIn,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    ai_rate_limiter.check(f"user:{user_id}:salary-delta")
+    try:
+        return build_salary_delta_projection(
+            db,
+            user_id=user_id,
+            target_job=payload.target_job,
+            location=payload.location,
+            completed_tasks=payload.completed_tasks,
+            all_tasks=payload.all_tasks,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

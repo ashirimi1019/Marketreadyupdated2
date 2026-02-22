@@ -410,3 +410,74 @@ export type AICareerOrchestrator = {
   pivot_target_role?: string | null;
   pivot_delta?: number | null;
 };
+
+export type AiCrucibleDimension = {
+  label: string;
+  score: number;
+};
+
+export type AiCrucibleEvaluation = {
+  scenario_id: string;
+  scenario_title: string;
+  scenario_prompt: string;
+  log_snippet: string;
+  time_limit_seconds: number;
+  process_score: number;
+  rating: "elite" | "strong" | "developing" | "high_risk" | string;
+  dimensions: AiCrucibleDimension[];
+  strengths: string[];
+  risks: string[];
+  next_actions: string[];
+  model_used: string;
+  evaluated_at: string;
+};
+
+export type SalaryDeltaSkill = {
+  skill: string;
+  unlocked: boolean;
+  delta_usd: number;
+  source: string;
+};
+
+export type SalaryDeltaProjection = {
+  base_salary_estimate: number;
+  projected_salary_estimate: number;
+  potential_value_added: number;
+  unlocked_skill_count: number;
+  tracked_skill_count: number;
+  source_mode: string;
+  adzuna_query_used?: string | null;
+  adzuna_location_used?: string | null;
+  skill_deltas: SalaryDeltaSkill[];
+  generated_at: string;
+};
+
+export type ShareLinkResponse = {
+  share_slug: string;
+  share_url: string;
+  username: string;
+};
+
+export type AgentReadyAsset = {
+  id: string;
+  proof_type: string;
+  checklist_item_id: string;
+  checklist_item_title?: string | null;
+  url: string;
+  created_at: string;
+  verification_status: string;
+};
+
+export type AgentReadyProfile = {
+  schema_version: string;
+  generated_at: string;
+  username: string;
+  share_slug?: string | null;
+  mri_score: number;
+  mri_band: string;
+  mri_components: Record<string, number>;
+  verified_skill_count: number;
+  verified_assets: AgentReadyAsset[];
+  links: Record<string, string>;
+  citations: Array<Record<string, string | number>>;
+};

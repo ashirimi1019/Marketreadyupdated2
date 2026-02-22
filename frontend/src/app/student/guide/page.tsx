@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { apiGet, apiSend } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { useSession } from "@/lib/session";
-import type { AICareerOrchestrator, MarketStressTest, RepoProofChecker, StudentProfile } from "@/types/api";
+import type {
+  AICareerOrchestrator,
+  MarketStressTest,
+  RepoProofChecker,
+  StudentProfile,
+  SalaryDeltaProjection,
+} from "@/types/api";
 
 const STRATEGIC_TIPS = [
   "Ship one public proof artifact every week, then rerun GitHub Proof Auditor.",
@@ -28,6 +34,18 @@ type MissionTask = {
   phase: string;
   lane: KanbanLane;
 };
+
+type RadarMetric = {
+  label: string;
+  value: number;
+};
+
+function polarPoint(center: number, radius: number, angle: number): { x: number; y: number } {
+  return {
+    x: center + radius * Math.cos(angle),
+    y: center + radius * Math.sin(angle),
+  };
+}
 
 function trendLabel(value: string): string {
   if (value === "heating_up") return "Heating Up";
@@ -132,6 +150,17 @@ export default function StudentAiGuidePage() {
   const [tipSeed, setTipSeed] = useState(0);
 
   const [futureYear, setFutureYear] = useState(2026);
+  const [salaryDelta, setSalaryDelta] = useState<SalaryDeltaProjection | null>(null);
+  const [salaryLoading, setSalaryLoading] = useState(false);
+  const [salaryError, setSalaryError] = useState<string | null>(null);
+  const [logicLog, setLogicLog] = useState<string[]>([
+    "[SENTINEL] Awaiting mission telemetry...",
+  ]);
+
+  const appendLogicLog = (line: string) => {
+    const stamp = new Date().toISOString().slice(11, 19);
+    setLogicLog((prev) => [`${stamp} ${line}`, ...prev].slice(0, 14));
+  };
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -255,6 +284,7 @@ export default function StudentAiGuidePage() {
       setStressError("Please log in to run MRI.");
       return;
     }
+    appendLogicLog("[SENTINEL] Running MRI stress test against live market feeds...");
     setStressLoading(true);
     setStressError(null);
     try {
@@ -267,9 +297,13 @@ export default function StudentAiGuidePage() {
         }),
       });
       setStressResult(data);
+      appendLogicLog(
+        `[SENTINEL] MRI updated ${data.score.toFixed(1)} (${trendLabel(data.vacancy_trend_label)} trend, source ${data.source_mode}).`
+      );
     } catch (err) {
       setStressError(getErrorMessage(err) || "Market stress test unavailable.");
       setStressResult(null);
+      appendLogicLog("[SENTINEL] MRI update failed. Retrying with fallback snapshots is recommended.");
     } finally {
       setStressLoading(false);
     }
@@ -280,6 +314,7 @@ export default function StudentAiGuidePage() {
       setRepoError("Please log in to verify by GitHub.");
       return;
     }
+    appendLogicLog("[VERIFIER] Auditing GitHub proof signals against checklist skills...");
     setRepoLoading(true);
     setRepoError(null);
     try {
@@ -293,9 +328,13 @@ export default function StudentAiGuidePage() {
         }),
       });
       setRepoResult(data);
+      appendLogicLog(
+        `[VERIFIER] Repo match ${data.match_count}/${data.required_skills_count}, confidence ${data.repo_confidence.toFixed(1)}%.`
+      );
     } catch (err) {
       setRepoError(getErrorMessage(err) || "GitHub proof auditor unavailable.");
       setRepoResult(null);
+      appendLogicLog("[VERIFIER] Repo audit failed.");
     } finally {
       setRepoLoading(false);
     }
@@ -306,6 +345,11 @@ export default function StudentAiGuidePage() {
       setOrchestratorError("Please log in to run the mission planner.");
       return;
     }
+    appendLogicLog(
+      pivotRequested
+        ? "[ORCHESTRATOR] Running market pivot simulation..."
+        : "[ORCHESTRATOR] Building 90-day mission from current telemetry..."
+    );
     if (pivotRequested) {
       setPivotLoading(true);
     } else {
@@ -327,6 +371,9 @@ export default function StudentAiGuidePage() {
         }),
       });
       setOrchestratorResult(payload);
+      appendLogicLog(
+        `[ORCHESTRATOR] Mission updated. Top gaps: ${(payload.top_missing_skills || []).slice(0, 2).join(", ") || "none"}.`
+      );
     } catch (err) {
       const message = getErrorMessage(err) || "Mission planner unavailable.";
       if (pivotRequested) {
@@ -335,12 +382,41 @@ export default function StudentAiGuidePage() {
         setOrchestratorError(message);
       }
       setOrchestratorResult(null);
+      appendLogicLog("[ORCHESTRATOR] Mission generation failed.");
     } finally {
       if (pivotRequested) {
         setPivotLoading(false);
       } else {
         setOrchestratorLoading(false);
       }
+    }
+  };
+
+  const runSalaryDelta = async (completedTasks: string[], allTasks: string[]) => {
+    if (!isLoggedIn) return;
+    setSalaryLoading(true);
+    setSalaryError(null);
+    try {
+      const data = await apiSend<SalaryDeltaProjection>("/user/ai/salary-delta", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_job: targetJob.trim() || "software engineer",
+          location: location.trim() || "united states",
+          completed_tasks: completedTasks,
+          all_tasks: allTasks,
+        }),
+      });
+      setSalaryDelta(data);
+      appendLogicLog(
+        `[ROI] Potential value +${salaryFormatter.format(data.potential_value_added)} from ${data.unlocked_skill_count} unlocked skills.`
+      );
+    } catch (err) {
+      setSalaryError(getErrorMessage(err) || "Salary delta unavailable.");
+      setSalaryDelta(null);
+      appendLogicLog("[ROI] Salary delta stream unavailable.");
+    } finally {
+      setSalaryLoading(false);
     }
   };
 
@@ -384,6 +460,15 @@ export default function StudentAiGuidePage() {
       ),
     [stressResult]
   );
+
+  useEffect(() => {
+    if (!isLoggedIn || !orchestratorResult || weekly.length === 0) return;
+    const completedTasks = weekly.filter((item) => weeklyChecks[item]);
+    const timer = window.setTimeout(() => {
+      runSalaryDelta(completedTasks, weekly);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [headers, isLoggedIn, orchestratorResult, targetJob, location, weekly, weeklyChecks]);
 
   useEffect(() => {
     setWeeklyChecks((prev) => {
@@ -437,6 +522,83 @@ export default function StudentAiGuidePage() {
     }
     return STRATEGIC_TIPS[tipSeed % STRATEGIC_TIPS.length];
   }, [repoResult, stressResult, tipSeed]);
+
+  const radarMetrics = useMemo<RadarMetric[]>(() => {
+    const techSignals = [
+      stressResult?.components?.skill_overlap_score ?? 0,
+      repoResult?.repo_confidence ?? 0,
+    ].filter((value) => Number.isFinite(value));
+    const technicalDepth = techSignals.length
+      ? techSignals.reduce((sum, value) => sum + value, 0) / techSignals.length
+      : 0;
+
+    const resilience = stressResult?.job_stability_score_2027 ?? 0;
+    const communication = Math.min(
+      100,
+      30 + weeklyProgressPct * 0.55 + (salaryDelta?.unlocked_skill_count ?? 0) * 3
+    );
+    const marketDemand = stressResult?.components?.market_trend_score ?? 0;
+    const securityIndicators = [
+      ...(repoResult?.verified_by_repo_skills ?? []),
+      ...(stressResult?.missing_skills ?? []),
+    ]
+      .join(" ")
+      .toLowerCase();
+    const securityBoost = /(security|owasp|sql|iam|auth|encryption|threat|cyber)/.test(securityIndicators)
+      ? 24
+      : 8;
+    const securityAwareness = Math.min(100, 36 + securityBoost + weeklyProgressPct * 0.2);
+
+    return [
+      { label: "Technical Depth", value: Math.max(0, Math.min(100, technicalDepth)) },
+      { label: "2027 Resilience", value: Math.max(0, Math.min(100, resilience)) },
+      { label: "Communication", value: Math.max(0, Math.min(100, communication)) },
+      { label: "Market Demand", value: Math.max(0, Math.min(100, marketDemand)) },
+      { label: "Security Awareness", value: Math.max(0, Math.min(100, securityAwareness)) },
+    ];
+  }, [repoResult, salaryDelta?.unlocked_skill_count, stressResult, weeklyProgressPct]);
+
+  const radarGeometry = useMemo(() => {
+    const size = 260;
+    const center = size / 2;
+    const radius = 92;
+    const startAngle = -Math.PI / 2;
+    const step = (Math.PI * 2) / Math.max(radarMetrics.length, 1);
+
+    const axisPoints = radarMetrics.map((metric, index) => {
+      const angle = startAngle + index * step;
+      const outer = polarPoint(center, radius, angle);
+      const valuePoint = polarPoint(center, radius * (metric.value / 100), angle);
+      const labelPoint = polarPoint(center, radius + 22, angle);
+      return {
+        metric,
+        outer,
+        valuePoint,
+        labelPoint,
+      };
+    });
+
+    const polygonPoints = axisPoints
+      .map((point) => `${point.valuePoint.x.toFixed(1)},${point.valuePoint.y.toFixed(1)}`)
+      .join(" ");
+
+    const gridPolygons = [0.25, 0.5, 0.75, 1].map((pct) =>
+      axisPoints
+        .map((point, index) => {
+          const gridPoint = polarPoint(center, radius * pct, startAngle + index * step);
+          return `${gridPoint.x.toFixed(1)},${gridPoint.y.toFixed(1)}`;
+        })
+        .join(" ")
+    );
+
+    return {
+      size,
+      center,
+      axisPoints,
+      polygonPoints,
+      gridPolygons,
+    };
+  }, [radarMetrics]);
 
   const exportMissionPlan = () => {
     if (!orchestratorResult) return;
@@ -537,6 +699,131 @@ export default function StudentAiGuidePage() {
           </div>
         )}
         {profile?.university && <p className="mt-3 text-xs text-[color:var(--muted)]">Education context: {profile.university}</p>}
+      </div>
+
+      <div className="rounded-xl border border-[color:var(--border)] bg-gradient-to-br from-slate-950 via-[#020617] to-slate-900 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xl font-semibold">Winner's Trading Floor</h3>
+          <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5 text-xs text-cyan-200">
+            Multi-Agent Signal View
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-[color:var(--muted)]">
+          Radar view of your real-time growth across technical depth, resilience, communication, demand, and security.
+        </p>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[280px,1fr]">
+          <div className="rounded-lg border border-white/10 bg-black/25 p-3">
+            <svg viewBox={`0 0 ${radarGeometry.size} ${radarGeometry.size}`} className="h-64 w-full">
+              {radarGeometry.gridPolygons.map((points) => (
+                <polygon key={points} points={points} fill="none" stroke="rgba(148,163,184,0.22)" strokeWidth="1" />
+              ))}
+              {radarGeometry.axisPoints.map((point) => (
+                <line
+                  key={`${point.metric.label}-axis`}
+                  x1={radarGeometry.center}
+                  y1={radarGeometry.center}
+                  x2={point.outer.x}
+                  y2={point.outer.y}
+                  stroke="rgba(148,163,184,0.32)"
+                  strokeWidth="1"
+                />
+              ))}
+              <polygon
+                points={radarGeometry.polygonPoints}
+                fill="rgba(34,211,238,0.2)"
+                stroke="rgba(34,211,238,0.85)"
+                strokeWidth="2"
+              />
+              {radarGeometry.axisPoints.map((point) => (
+                <circle
+                  key={`${point.metric.label}-dot`}
+                  cx={point.valuePoint.x}
+                  cy={point.valuePoint.y}
+                  r="3.2"
+                  fill="#22d3ee"
+                />
+              ))}
+              {radarGeometry.axisPoints.map((point) => (
+                <text
+                  key={`${point.metric.label}-label`}
+                  x={point.labelPoint.x}
+                  y={point.labelPoint.y}
+                  textAnchor="middle"
+                  fill="rgba(226,232,240,0.92)"
+                  fontSize="10"
+                >
+                  {point.metric.label}
+                </text>
+              ))}
+            </svg>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {radarMetrics.map((metric) => (
+              <div key={metric.label} className="rounded-lg border border-white/10 bg-black/25 p-3">
+                <p className="text-xs uppercase tracking-wider text-zinc-400">{metric.label}</p>
+                <p className="mt-1 text-2xl font-bold text-white">{metric.value.toFixed(1)}</p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/40">
+                  <div
+                    className="h-full rounded-full bg-cyan-400/80 transition-all"
+                    style={{ width: `${Math.max(0, Math.min(100, metric.value))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-[color:var(--border)] bg-black/35 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xl font-semibold">Potential Value Added</h3>
+          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">
+            Salary Delta Ticker
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-[color:var(--muted)]">
+          As you complete weekly mission tasks, projected market value updates from Adzuna-linked signals.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+            <p className="text-xs uppercase tracking-wider text-zinc-500">Base salary</p>
+            <p className="mt-1 text-2xl font-bold text-white">
+              {salaryDelta ? salaryFormatter.format(salaryDelta.base_salary_estimate) : "$0"}
+            </p>
+          </div>
+          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 shadow-[0_0_24px_rgba(16,185,129,0.25)]">
+            <p className="text-xs uppercase tracking-wider text-emerald-200">Potential value added</p>
+            <p className="mt-1 text-3xl font-black text-emerald-200">
+              {salaryDelta ? `+${salaryFormatter.format(salaryDelta.potential_value_added)}` : "+$0"}
+            </p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/30 p-3">
+            <p className="text-xs uppercase tracking-wider text-zinc-500">Projected salary</p>
+            <p className="mt-1 text-2xl font-bold text-white">
+              {salaryDelta ? salaryFormatter.format(salaryDelta.projected_salary_estimate) : "$0"}
+            </p>
+          </div>
+        </div>
+        {salaryLoading && <p className="mt-3 text-sm text-[color:var(--muted)]">Updating salary delta ticker...</p>}
+        {salaryError && <p className="mt-3 text-sm text-[color:var(--accent-2)]">{salaryError}</p>}
+        {salaryDelta && (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {salaryDelta.skill_deltas.slice(0, 8).map((skillRow) => (
+              <div key={skillRow.skill} className="rounded-lg border border-white/10 bg-black/25 p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-white">{skillRow.skill}</p>
+                  <p className={skillRow.unlocked ? "font-semibold text-emerald-300" : "text-zinc-400"}>
+                    {skillRow.unlocked ? "Unlocked" : "Pending"}
+                  </p>
+                </div>
+                <p className="mt-1 text-[color:var(--muted)]">
+                  Delta: {skillRow.delta_usd >= 0 ? "+" : ""}
+                  {salaryFormatter.format(skillRow.delta_usd)} ({skillRow.source.replace(/_/g, " ")})
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-[color:var(--border)] p-5">
@@ -952,6 +1239,20 @@ export default function StudentAiGuidePage() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="rounded-xl border border-[color:var(--border)] bg-black/70 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-semibold text-emerald-300">Live Logic Log</p>
+          <span className="text-xs text-zinc-400">Agent stream</span>
+        </div>
+        <div className="mt-3 max-h-52 overflow-y-auto rounded-lg border border-white/10 bg-black p-3 font-mono text-xs text-emerald-300">
+          {logicLog.map((line, idx) => (
+            <p key={`${line}-${idx}`} className="leading-6">
+              {line}
+            </p>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-xl border border-[color:var(--border)] bg-black/30 p-4 text-sm text-[color:var(--muted)]">

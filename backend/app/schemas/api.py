@@ -385,6 +385,61 @@ class RepoProofCheckerOut(BaseModel):
     snapshot_age_minutes: Optional[float] = None
 
 
+class AiCrucibleIn(BaseModel):
+    target_role: Optional[str] = None
+    location: Optional[str] = None
+    scenario_id: Optional[str] = None
+    answer: str = Field(min_length=20, max_length=6000)
+
+
+class AiCrucibleDimensionOut(BaseModel):
+    label: str
+    score: float = Field(ge=0, le=100)
+
+
+class AiCrucibleOut(BaseModel):
+    scenario_id: str
+    scenario_title: str
+    scenario_prompt: str
+    log_snippet: str
+    time_limit_seconds: int = 300
+    process_score: float = Field(ge=0, le=100)
+    rating: str
+    dimensions: List[AiCrucibleDimensionOut] = Field(default_factory=list)
+    strengths: List[str] = Field(default_factory=list)
+    risks: List[str] = Field(default_factory=list)
+    next_actions: List[str] = Field(default_factory=list)
+    model_used: str = "fallback"
+    evaluated_at: str
+
+
+class SalaryDeltaIn(BaseModel):
+    target_job: str
+    location: str
+    completed_tasks: List[str] = Field(default_factory=list)
+    all_tasks: List[str] = Field(default_factory=list)
+
+
+class SalaryDeltaSkillOut(BaseModel):
+    skill: str
+    unlocked: bool
+    delta_usd: float
+    source: str
+
+
+class SalaryDeltaOut(BaseModel):
+    base_salary_estimate: float = 0.0
+    projected_salary_estimate: float = 0.0
+    potential_value_added: float = 0.0
+    unlocked_skill_count: int = 0
+    tracked_skill_count: int = 0
+    source_mode: str = "estimated_fallback"
+    adzuna_query_used: Optional[str] = None
+    adzuna_location_used: Optional[str] = None
+    skill_deltas: List[SalaryDeltaSkillOut] = Field(default_factory=list)
+    generated_at: str
+
+
 class AICareerOrchestratorIn(BaseModel):
     target_job: str
     location: str
@@ -512,6 +567,30 @@ class TransparencyAuditOut(BaseModel):
     factors: List[TransparencyFactorOut] = Field(default_factory=list)
     excluded_signals: List[str] = Field(default_factory=list)
     compliance_notes: List[str] = Field(default_factory=list)
+
+
+class AgentReadyAssetOut(BaseModel):
+    id: UUID
+    proof_type: str
+    checklist_item_id: UUID
+    checklist_item_title: Optional[str] = None
+    url: str
+    created_at: datetime
+    verification_status: str = "verified"
+
+
+class AgentReadyProfileOut(BaseModel):
+    schema_version: str
+    generated_at: str
+    username: str
+    share_slug: Optional[str] = None
+    mri_score: float = 0.0
+    mri_band: str
+    mri_components: dict[str, float] = Field(default_factory=dict)
+    verified_skill_count: int = 0
+    verified_assets: List[AgentReadyAssetOut] = Field(default_factory=list)
+    links: dict[str, str] = Field(default_factory=dict)
+    citations: List[dict[str, Any]] = Field(default_factory=list)
 
 
 class AdminPathwayIn(BaseModel):
