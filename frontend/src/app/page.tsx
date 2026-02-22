@@ -118,8 +118,8 @@ const BENEFIT_PROMISES = [
     title: "Get personalized certification recommendations",
     detail:
       "Use role-aware ROI guidance to choose certificates based on demand, salary impact, budget, and effort.",
-    href: "#cert-roi",
-    cta: "Compare Cert ROI",
+    href: "/student/guide",
+    cta: "See Cert Recommendations",
     testId: "benefit-certifications",
   },
   {
@@ -129,6 +129,14 @@ const BENEFIT_PROMISES = [
     href: "/student/guide",
     cta: "Open 90-Day Plan",
     testId: "benefit-90-day-plan",
+  },
+  {
+    title: "Get ATS resume help",
+    detail:
+      "Use our ATS-focused resume support to improve keyword alignment, structure, and recruiter readability.",
+    href: "/student/resume-architect",
+    cta: "Optimize ATS Resume",
+    testId: "benefit-ats-resume",
   },
 ] as const;
 
@@ -473,12 +481,12 @@ export default function Home() {
       </section>
 
       <section className="panel" id="benefits" data-testid="benefits-section">
-        <span className="badge">How We Help</span>
+        <span className="badge">Services</span>
         <h2 className="section-title mt-3">
-          Outcomes You Can Expect
+          Some of the Services We Offer
         </h2>
         <p className="section-subtitle mt-3">
-          We do not just show tools. We help you improve measurable outcomes that move you closer to getting hired.
+          These services are designed to move you from confusion to clear, job-ready execution.
         </p>
 
         <div className="action-grid mt-6">
@@ -563,6 +571,8 @@ export default function Home() {
         </div>
       </section>
 
+      {isLoggedIn && (
+        <>
       {/* AI Skill Gap Auditor */}
       <section className="panel auditor-stage" id="audit-engine" data-testid="auditor-section">
         <div className="auditor-header">
@@ -785,6 +795,8 @@ export default function Home() {
           </p>
         )}
       </section>
+        </>
+      )}
 
       {/* Quick Links Bento Grid (authenticated) */}
       {isLoggedIn && (

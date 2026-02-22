@@ -5,7 +5,7 @@
 :root[data-theme="dark"] {
   --background: #030512;
   --foreground: #e0e6ff;
-  --muted: #7b8ab8;
+  --muted: #97a9d7;
   --surface: #080c1e;
   --surface-hi: #0f162b;
   --border: rgba(61, 109, 255, 0.14);
@@ -81,12 +81,14 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body { min-height: 100%; }
+html { font-size: 106.25%; }
 
 body {
   background: var(--scene-bg);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   letter-spacing: -0.012em;
+  line-height: 1.56;
 }
 
 body::before {
@@ -158,7 +160,7 @@ a { color: inherit; text-decoration: none; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--foreground);
@@ -174,7 +176,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .nav-tagline {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   letter-spacing: -0.01em;
 }
@@ -193,7 +195,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   padding: 7px 13px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--muted);
   letter-spacing: -0.01em;
@@ -225,7 +227,7 @@ a { color: inherit; text-decoration: none; }
   gap: 6px;
   padding: 7px 16px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
   border: 1px solid var(--border-hi);
@@ -330,7 +332,7 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--border-hi);
   background: rgba(61, 109, 255, 0.1);
   color: var(--primary);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-family: var(--font-mono), monospace;
@@ -345,7 +347,7 @@ a { color: inherit; text-decoration: none; }
   gap: 8px;
   border-radius: 12px;
   padding: 12px 24px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
   border: 1px solid var(--primary);
@@ -431,7 +433,7 @@ input:focus, select:focus, textarea:focus {
 
 .market-ticker-item {
   font-family: var(--font-mono), monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -460,7 +462,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--border-hi);
   padding: 6px 14px;
   font-family: var(--font-mono), monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -551,7 +553,7 @@ input:focus, select:focus, textarea:focus {
 
 .section-subtitle {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   max-width: 600px;
 }
@@ -663,7 +665,7 @@ input:focus, select:focus, textarea:focus {
   font-family: var(--font-mono), monospace;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -693,7 +695,7 @@ input:focus, select:focus, textarea:focus {
   margin-top: 20px;
   margin-bottom: 8px;
   font-family: var(--font-mono), monospace;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
@@ -706,7 +708,7 @@ input:focus, select:focus, textarea:focus {
   border-radius: 14px;
   border: 1px solid var(--input-border);
   padding: 16px 18px;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   background: var(--input-bg);
 }
@@ -716,7 +718,7 @@ input:focus, select:focus, textarea:focus {
 
 .auditor-feedback {
   margin-top: 12px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
 }
 
@@ -738,7 +740,7 @@ input:focus, select:focus, textarea:focus {
 
 .auditor-result-label {
   font-family: var(--font-mono), monospace;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
@@ -746,7 +748,7 @@ input:focus, select:focus, textarea:focus {
 
 .auditor-result-value {
   margin-top: 8px;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.02em;
@@ -759,7 +761,7 @@ input:focus, select:focus, textarea:focus {
   color: var(--muted);
   list-style: none;
   padding-left: 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .auditor-result-list li::before {
@@ -794,7 +796,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--border);
   background: rgba(61, 109, 255, 0.07);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -821,11 +823,15 @@ input:focus, select:focus, textarea:focus {
 .nav-auth { /* handled by .nav */ }
 .nav-auth-left { display: flex; flex-direction: column; gap: 6px; }
 .nav-auth-title { font-size: 22px; font-weight: 700; line-height: 1.1; }
-.nav-auth-sub { color: var(--muted); font-size: 13px; }
+.nav-auth-sub { color: var(--muted); font-size: 14px; }
 .nav-auth-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 .nav-brand { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .nav-left-cluster { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.nav-links-main a { font-size: 13px; }
+.nav-links-main a { font-size: 14px; }
+
+/* Tailwind utility size bump for readability across pages */
+.text-sm { font-size: 0.9rem; line-height: 1.55; }
+.text-xs { font-size: 0.8rem; line-height: 1.45; }
 
 /* ─── ANIMATIONS ─────────────────────────────────────────────── */
 @keyframes tickerScroll {
