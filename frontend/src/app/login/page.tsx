@@ -110,21 +110,17 @@ export default function LoginPage() {
     }
   };
 
-  const inputClass = "w-full rounded-xl border px-4 py-3 text-sm outline-none transition-shadow";
-  const inputStyle = { borderColor: "var(--input-border)", background: "var(--input-bg)", color: "var(--foreground)" };
-
   return (
     <div className="flex items-start justify-center pt-8 px-4">
       <div
-        className="w-full max-w-md rounded-2xl border p-8"
-        style={{ borderColor: "var(--border-hi)", background: "rgba(8,12,30,0.75)", backdropFilter: "blur(20px)" }}
+        className="login-card w-full max-w-md"
         data-testid="login-page"
       >
         {/* Header */}
         <div className="mb-8">
           <span className="badge mb-4 inline-flex" data-testid="login-badge">Secure Access</span>
           <h1 className="text-2xl font-bold mt-3 tracking-tight">Sign in</h1>
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          <p className="mt-1 text-sm login-description">
             Enter your credentials to access your readiness dashboard.
           </p>
         </div>
@@ -132,12 +128,12 @@ export default function LoginPage() {
         {/* Login Form */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>
+            <label htmlFor="username-input" className="text-xs font-mono uppercase tracking-widest login-field-label">
               Username
             </label>
             <input
-              className={inputClass}
-              style={inputStyle}
+              id="username-input"
+              className="login-input w-full"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -147,13 +143,13 @@ export default function LoginPage() {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>
+            <label htmlFor="password-input" className="text-xs font-mono uppercase tracking-widest login-field-label">
               Password
             </label>
             <input
+              id="password-input"
               type="password"
-              className={inputClass}
-              style={inputStyle}
+              className="login-input w-full"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleLogin()}
@@ -173,26 +169,20 @@ export default function LoginPage() {
 
         {status && (
           <div
-            className="mt-4 rounded-xl px-4 py-3 text-sm"
-            style={{
-              background: statusIsError ? "rgba(255,59,48,0.08)" : "rgba(0,200,150,0.08)",
-              borderColor: statusIsError ? "rgba(255,59,48,0.25)" : "rgba(0,200,150,0.25)",
-              color: statusIsError ? "#ff6b8a" : "var(--success)",
-              border: "1px solid",
-            }}
+            className={`login-status ${statusIsError ? "error" : "success"}`}
             data-testid="login-status"
+            role="alert"
           >
             {status}
           </div>
         )}
 
-        <div className="mt-6 flex items-center justify-between text-sm">
-          <Link href="/register" className="text-sm" style={{ color: "var(--primary)" }} data-testid="login-register-link">
+        <div className="mt-6 flex items-center justify-between">
+          <Link href="/register" className="login-register-link" data-testid="login-register-link">
             Create account
           </Link>
           <button
-            className="text-sm"
-            style={{ color: "var(--muted)", background: "none", border: "none", cursor: "pointer" }}
+            className="login-footer-button"
             onClick={() => setShowReset((v) => !v)}
             data-testid="login-toggle-reset-btn"
           >
@@ -203,17 +193,16 @@ export default function LoginPage() {
         {/* Password Reset */}
         {showReset && (
           <div
-            className="mt-6 rounded-xl border p-5 flex flex-col gap-4"
-            style={{ borderColor: "var(--border)", background: "rgba(61,109,255,0.04)" }}
+            className="login-reset-container"
             data-testid="login-reset-section"
           >
-            <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--primary)" }}>
+            <p className="text-xs font-mono uppercase tracking-widest login-reset-title">
               Password Reset
             </p>
             <div className="flex gap-2">
               <input
-                className={`${inputClass} flex-1`}
-                style={inputStyle}
+                id="reset-identity-input"
+                className="login-input flex-1"
                 placeholder="Username or email"
                 value={forgotIdentity}
                 onChange={(e) => setForgotIdentity(e.target.value)}
@@ -228,23 +217,23 @@ export default function LoginPage() {
               </button>
             </div>
             <input
-              className={inputClass}
-              style={inputStyle}
+              id="reset-code-input"
+              className="login-input"
               placeholder="Reset code"
               value={resetCode}
               onChange={(e) => setResetCode(e.target.value)}
               data-testid="reset-code-input"
             />
             <input
+              id="reset-password-input"
               type="password"
-              className={inputClass}
-              style={inputStyle}
+              className="login-input"
               placeholder="New password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               data-testid="reset-newpw-input"
             />
-            <p className="text-xs" style={{ color: "var(--muted)" }}>{passwordPolicyHint}</p>
+            <p className="login-hint-text">{passwordPolicyHint}</p>
             <button
               className="cta cta-secondary"
               onClick={handleResetPassword}
