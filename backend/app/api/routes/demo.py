@@ -6,10 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, Request
-from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import get_db
 from app.core.ratelimit import RateLimiter
 from app.services.ai import (
     _extract_resume_blob_text,
