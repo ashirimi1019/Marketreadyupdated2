@@ -70,15 +70,6 @@
   --scene-grid-opacity: 0.45;
 }
 
-/* stylelint-disable at-rule-no-unknown */
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-space);
-  --font-mono: var(--font-plex-mono);
-}
-/* stylelint-enable at-rule-no-unknown */
-
 /* ─── BASE ───────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
