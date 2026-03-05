@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from app.api.routes import auth, majors, user, proofs, readiness, timeline, admin, ai, market, meta
+from app.api.routes import auth, majors, user, proofs, readiness, timeline, admin, ai, market, meta, demo
 from app.api.routes import github, mri, sentinel, kanban, simulator, public_profile
 from app.core.config import settings
 from app.services.market_automation import start_market_scheduler, stop_market_scheduler
@@ -62,6 +62,7 @@ def _register_routes(prefix: str = "") -> None:
     app.include_router(ai.router, tags=["ai"], prefix=prefix)
     app.include_router(market.router, tags=["market"], prefix=prefix)
     app.include_router(meta.router, tags=["meta"], prefix=prefix)
+    app.include_router(demo.router, tags=["demo"], prefix=prefix)
     app.include_router(github.router, tags=["github"], prefix=prefix)
     app.include_router(mri.router, tags=["mri"], prefix=prefix)
     app.include_router(sentinel.router, tags=["sentinel"], prefix=prefix)
