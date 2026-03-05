@@ -241,6 +241,76 @@ export default function Home() {
   const [readinessRank, setReadinessRank] = useState<ReadinessRank | null>(null);
   const [weeklyStreak, setWeeklyStreak] = useState<WeeklyMilestoneStreak | null>(null);
 
+  /* Resume scanner state */
+  type ScanResult = {
+    score: number;
+    band: string;
+    strengths: string[];
+    improvements: string[];
+    keywords_found: string[];
+    role_match: string;
+  };
+  const [scanFile, setScanFile] = useState<File | null>(null);
+  const [scanDragging, setScanDragging] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+
+  const handleScanFile = (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      setScanError("File too large. Max 5MB.");
+      return;
+    }
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["pdf", "docx", "txt", "md", "doc", "rtf"].includes(ext ?? "")) {
+      setScanError("Unsupported file type. Use PDF, DOCX, or TXT.");
+      return;
+    }
+    setScanFile(file);
+    setScanError(null);
+    setScanResult(null);
+  };
+
+  const runResumeScan = async () => {
+    if (!scanFile) return;
+    setScanLoading(true);
+    setScanError(null);
+    setScanResult(null);
+    setScanProgress(0);
+
+    let prog = 0;
+    const ticker = setInterval(() => {
+      prog = Math.min(prog + Math.random() * 12, 88);
+      setScanProgress(Math.round(prog));
+    }, 300);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", scanFile);
+      const res = await fetch(`${API_BASE}/public/demo/resume-scan`, {
+        method: "POST",
+        body: formData,
+      });
+      clearInterval(ticker);
+      setScanProgress(100);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail ?? `Error ${res.status}`);
+      }
+      const data = await res.json();
+      setScanResult(data as ScanResult);
+    } catch (e: unknown) {
+      clearInterval(ticker);
+      setScanProgress(0);
+      setScanError(e instanceof Error ? e.message : "Scan failed. Try again.");
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
   /* countdown animation for 2027 simulation */
   const [score, setScore] = useState(82);
   useEffect(() => {
@@ -407,6 +477,168 @@ export default function Home() {
             Stress-Test My Career
           </Link>
         </div>
+      </section>
+
+      {/* ── AI Resume Scanner (public hook) ── */}
+      <section className="panel" id="resume-scanner" data-testid="resume-scanner-section">
+        <div className="text-center mb-6">
+          <span className="badge mb-3 inline-flex">// AI-POWERED ANALYSIS</span>
+          <h2 className="section-title mt-3">Find Out How Hireable You Really Are</h2>
+          <p className="section-subtitle mt-3 mx-auto" style={{ maxWidth: "540px" }}>
+            Upload your resume. Our AI analyzes it against today&apos;s job market in seconds — no account needed.
+          </p>
+        </div>
+
+        {/* Drop zone */}
+        {!scanResult && (
+          <label
+            htmlFor="resume-file-input"
+            className={`drop-zone${scanDragging ? " drag-active" : ""}${scanFile ? " has-file" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setScanDragging(true); }}
+            onDragLeave={() => setScanDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setScanDragging(false);
+              const f = e.dataTransfer.files[0];
+              if (f) handleScanFile(f);
+            }}
+          >
+            <input
+              id="resume-file-input"
+              type="file"
+              accept=".pdf,.docx,.doc,.txt,.md,.rtf"
+              className="sr-file-input"
+              aria-label="Upload resume file"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleScanFile(f);
+              }}
+            />
+            <div className="drop-zone-icon">📄</div>
+            {scanFile ? (
+              <p className="drop-zone-label">{scanFile.name}</p>
+            ) : (
+              <>
+                <p className="drop-zone-label">Drop your resume here or click to browse</p>
+                <p className="drop-zone-hint">PDF, DOCX, TXT — max 5 MB</p>
+              </>
+            )}
+          </label>
+        )}
+
+        {/* Progress */}
+        {scanLoading && (
+          <div
+            className="progress-track mt-4"
+            role="progressbar"
+            aria-label="Resume scan progress"
+            aria-valuenow={scanProgress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div className="progress-bar" style={{ width: `${scanProgress}%` }} />
+          </div>
+        )}
+
+        {/* Error */}
+        {scanError && (
+          <p className="scan-error-text" role="alert">{scanError}</p>
+        )}
+
+        {/* Scan button */}
+        {!scanResult && (
+          <div className="flex justify-center mt-5">
+            <button
+              type="button"
+              className={`cta${(!scanFile || scanLoading) ? " cta-disabled" : ""}`}
+              onClick={runResumeScan}
+              disabled={!scanFile || scanLoading}
+            >
+              {scanLoading ? `Analyzing… ${scanProgress}%` : "Analyze My Resume"}
+            </button>
+          </div>
+        )}
+
+        {/* Results */}
+        {scanResult && (
+          <div className="results-gate mt-6">
+            {/* Score ring + band */}
+            <div className="flex flex-col items-center mb-6">
+              <div
+                className="score-ring"
+                style={{
+                  "--score-pct": `${scanResult.score}`,
+                  "--score-color": scanResult.score >= 85 ? "var(--success)" : scanResult.score >= 65 ? "var(--primary)" : scanResult.score >= 45 ? "var(--warning)" : "var(--danger)"
+                } as React.CSSProperties}
+              >
+                <span className="score-ring-value">{scanResult.score}</span>
+              </div>
+              <p className="scan-band-label">
+                {scanResult.band} · {scanResult.role_match}
+              </p>
+            </div>
+
+            {/* Blurred strengths + improvements for guests */}
+            <div className="results-blur-wrapper">
+              <div className={!isLoggedIn ? "results-blur" : ""}>
+                <div className="grid gap-4 md:grid-cols-2 mb-4">
+                  <div className="scan-strengths-card">
+                    <p className="scan-strengths-label">Strengths</p>
+                    <ul className="space-y-1">
+                      {scanResult.strengths.map((s, i) => (
+                        <li key={i} className="scan-list-item">✓ {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="scan-improvements-card">
+                    <p className="scan-improvements-label">Improvements</p>
+                    <ul className="space-y-1">
+                      {scanResult.improvements.map((s, i) => (
+                        <li key={i} className="scan-list-item">→ {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                {scanResult.keywords_found.length > 0 && (
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {scanResult.keywords_found.map((kw, i) => (
+                      <span key={i} className="badge">{kw}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Gate overlay for guests */}
+              {!isLoggedIn && (
+                <div className="gate-overlay">
+                  <p className="text-sm font-semibold mb-1">Your full report is ready</p>
+                  <p className="gate-subtitle">
+                    Create a free account to unlock your complete analysis + 5 powerful career tools
+                  </p>
+                  <div className="flex gap-3 justify-center flex-wrap">
+                    <Link href="/register" className="cta gate-cta">
+                      Get Full Results (Free)
+                    </Link>
+                    <Link href="/login" className="cta-outline gate-cta">
+                      Sign In
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Scan another */}
+            <div className="flex justify-center mt-6">
+              <button
+                type="button"
+                className="cta-outline scan-again-btn"
+                onClick={() => { setScanResult(null); setScanFile(null); setScanProgress(0); }}
+              >
+                Scan Another Resume
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="panel" id="methodology" data-testid="methodology-section">

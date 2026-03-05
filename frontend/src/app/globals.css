@@ -995,3 +995,216 @@ input:focus, select:focus, textarea:focus {
   }
   .market-ticker-track { animation: none; }
 }
+
+/* ─── RESUME SCANNER ─────────────────────────────────────────── */
+
+/* Hidden file input (accessible via label) */
+.sr-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Drop zone */
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2.5rem 2rem;
+  border: 2px dashed var(--border-hi);
+  border-radius: 1.25rem;
+  background: rgba(61, 109, 255, 0.04);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: center;
+}
+
+.drop-zone:hover,
+.drop-zone.drag-active {
+  border-color: var(--primary);
+  background: rgba(61, 109, 255, 0.1);
+}
+
+.drop-zone.has-file {
+  border-color: var(--success);
+  background: rgba(0, 200, 150, 0.06);
+}
+
+.drop-zone-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.drop-zone-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.drop-zone-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Progress bar */
+.progress-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(61, 109, 255, 0.15);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent-3));
+  transition: width 0.3s ease;
+}
+
+/* Scan error */
+.scan-error-text {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  text-align: center;
+  color: var(--danger);
+}
+
+/* Disabled CTA */
+.cta-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Score ring */
+.score-ring {
+  --score-pct: 0;
+  --score-color: var(--primary);
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--score-color) calc(var(--score-pct) * 1%),
+    rgba(61, 109, 255, 0.12) 0%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-ring::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.score-ring-value {
+  position: relative;
+  z-index: 1;
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+/* Score band label */
+.scan-band-label {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Strengths / Improvements cards */
+.scan-strengths-card,
+.scan-improvements-card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  padding: 1rem;
+}
+
+.scan-strengths-card {
+  background: rgba(61, 109, 255, 0.06);
+}
+
+.scan-improvements-card {
+  background: rgba(255, 59, 48, 0.06);
+}
+
+.scan-strengths-label {
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+  color: var(--success);
+}
+
+.scan-improvements-label {
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+  color: var(--warning);
+}
+
+.scan-list-item {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+/* Results blur wrapper + overlay */
+.results-blur-wrapper {
+  position: relative;
+}
+
+.results-blur {
+  filter: blur(5px) saturate(0.3);
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.gate-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: rgba(3, 5, 18, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-hi);
+}
+
+.gate-subtitle {
+  font-size: 0.75rem;
+  margin-bottom: 1rem;
+  color: var(--muted);
+}
+
+.gate-cta {
+  font-size: 0.85rem;
+  padding: 10px 22px;
+}
+
+/* Scan again button */
+.scan-again-btn {
+  font-size: 0.8rem;
+}
