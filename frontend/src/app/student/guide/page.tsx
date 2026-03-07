@@ -342,9 +342,9 @@ export default function StudentAiGuidePage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
                 {[
-                  { label: "Vacancies", value: stressResult.vacancy_count?.toLocaleString() ?? "--", icon: "work" },
+                  { label: "Matched Skills", value: `${stressResult.matched_skills_count ?? "--"} / ${stressResult.required_skills_count ?? "--"}`, icon: "work" },
                   { label: "Trend", value: trendLabel(stressResult.vacancy_trend_label), icon: "trending_up" },
-                  { label: "YoY Δ", value: `${(stressResult.vacancy_trend_pct ?? 0) > 0 ? "+" : ""}${(stressResult.vacancy_trend_pct ?? 0).toFixed(1)}%`, icon: "show_chart" },
+                  { label: "YoY Δ", value: `${(stressResult.vacancy_growth_percent ?? 0) > 0 ? "+" : ""}${(stressResult.vacancy_growth_percent ?? 0).toFixed(1)}%`, icon: "show_chart" },
                   { label: "2027 Stability", value: `${(stressResult.job_stability_score_2027 ?? 0).toFixed(0)}`, icon: "shield" },
                 ].map(s => (
                   <div key={s.label} style={{ background: "var(--surface-2)", borderRadius: 10, padding: "8px 10px" }}>
@@ -356,9 +356,9 @@ export default function StudentAiGuidePage() {
                   </div>
                 ))}
               </div>
-              {stressResult.salary_range && (
+              {stressResult.salary_average != null && (
                 <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginBottom: 8 }}>
-                  Salary: {salaryFormatter.format(stressResult.salary_range.min)} – {salaryFormatter.format(stressResult.salary_range.max)}
+                  Avg Salary: {salaryFormatter.format(stressResult.salary_average)}{stressResult.salary_percentile_local != null ? ` · ${stressResult.salary_percentile_local.toFixed(0)}th pct local` : ""}
                 </p>
               )}
               {stressResult.missing_skills?.length > 0 && (
