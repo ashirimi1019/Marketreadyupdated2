@@ -1,1072 +1,536 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { apiGet, apiSend } from "@/lib/api";
-import { getErrorMessage, getRetryAfterSeconds, isRateLimited } from "@/lib/errors";
-import { useSession } from "@/lib/session";
-import { formatDisplayName } from "@/lib/name";
 
-type AiGuide = {
-  decision?: string | null;
-  recommendations?: string[];
-  next_actions?: string[];
-  recommended_certificates?: string[];
-  uncertainty?: string | null;
-};
-
-type AiCertRoiOption = {
-  certificate: string;
-  cost_usd: string;
-  time_required: string;
-  entry_salary_range: string;
-  difficulty_level: string;
-  demand_trend: string;
-  roi_score: number;
-  why_it_helps: string;
-};
-
-type AiCertRoiOut = {
-  target_role?: string | null;
-  top_options: AiCertRoiOption[];
-  winner?: string | null;
-  recommendation: string;
-  uncertainty?: string | null;
-};
-
-type Proof = { status: string };
-type ChecklistItem = { id: string };
-type Readiness = { score: number };
-type ReadinessRank = { percentile: number; rank: number; total_students: number };
-type WeeklyMilestoneStreak = { current_streak_weeks: number };
-
-const TICKER_ITEMS = [
-  "Live Adzuna vacancy signals",
-  "CareerOneStop federal skill standards",
-  "GitHub repo proof verification",
-  "MRI formula: 40% skill + 30% demand + 30% proof",
-  "Real-time salary benchmarks",
-  "2027 AI shift simulation",
-  "90-day agentic mission planning",
-];
-
-const PLATFORM_OVERVIEW = [
-  {
-    title: "What we provide",
-    points: [
-      "A 0-100 Market Readiness Index with a clear component breakdown and gap priorities.",
-      "Skill Gap Auditor and Certification ROI guidance mapped to your target role.",
-      "Proof portfolio tracking, GitHub-backed evidence checks, and AI-shift stress simulation.",
-    ],
-  },
-  {
-    title: "How we provide it",
-    points: [
-      "We map your selected role to required skill standards using CareerOneStop.",
-      "We pull live market demand and salary momentum from Adzuna.",
-      "We compare required skills against your verified proofs and repo signals, then recalculate your score.",
-      "Every run returns freshness metadata, provider status, and source citations.",
-    ],
-  },
-  {
-    title: "APIs and systems used",
-    points: [
-      "Adzuna Jobs API for vacancy trend, salary benchmarks, and hiring company signals.",
-      "CareerOneStop Skills Matcher for role-to-skill requirements (with O*NET role mapping).",
-      "GitHub API for repository, language, and code-signal verification workflows.",
-      "Configurable AI provider (OpenAI or Groq) for guidance and proof-assist flows.",
-    ],
-  },
-] as const;
-
-const CALCULATION_DETAILS = [
-  {
-    title: "Core MRI Formula",
-    description: "MRI = (Federal Standards x 0.40) + (Market Demand x 0.30) + (Evidence Density x 0.30)",
-  },
-  {
-    title: "Federal Standards",
-    description: "70% non-negotiables + 30% strong signals, weighted by proficiency (Professional 1.0, Intermediate 0.75, Beginner 0.50).",
-  },
-  {
-    title: "Evidence Density",
-    description: "35% proof-type diversity + 35% proficiency quality + 15% certificate bonus + 15% GitHub profile signal.",
-  },
-  {
-    title: "Market Stress Formula",
-    description: "Stress score uses 40% skill overlap + 30% market trend + 30% evidence verification with 2027 scenario simulation.",
-  },
-] as const;
-
-const DATA_TRUST_POINTS = [
-  "Provider traceability: responses include source mode (live or snapshot fallback), provider status, and query details used.",
-  "Freshness controls: market snapshots use strict TTL windows so stale data is not silently treated as fresh.",
-  "Citation-backed scoring: each score run includes source-signal-value citations for skill overlap, market trend, and proof density.",
-  "Proof integrity: evidence is tied to submitted artifacts, verification status, and metadata instead of hidden manual overrides.",
-] as const;
-
-const BENEFIT_PROMISES = [
-  {
-    title: "Increase your job readiness score",
-    detail:
-      "Prioritize what to improve first and track measurable readiness gains as your proofs and skills grow.",
-    href: "/student/readiness",
-    cta: "View Readiness",
-    testId: "benefit-readiness",
-  },
-  {
-    title: "Get personalized certification recommendations",
-    detail:
-      "Use role-aware ROI guidance to choose certificates based on demand, salary impact, budget, and effort.",
-    href: "/student/guide",
-    cta: "See Cert Recommendations",
-    testId: "benefit-certifications",
-  },
-  {
-    title: "Build a 90-day career plan",
-    detail:
-      "Turn goals into weekly execution with a guided plan tied to real market signals and your target pathway.",
-    href: "/student/guide",
-    cta: "Open 90-Day Plan",
-    testId: "benefit-90-day-plan",
-  },
-  {
-    title: "Get ATS resume help",
-    detail:
-      "Use our ATS-focused resume support to improve keyword alignment, structure, and recruiter readability.",
-    href: "/student/resume-architect",
-    cta: "Optimize ATS Resume",
-    testId: "benefit-ats-resume",
-  },
-] as const;
-
-const QUICK_LINKS = [
-  {
-    title: "Market Mission",
-    text: "Run MRI stress test, verify GitHub repos, launch 90-day plan.",
-    href: "/student/guide",
-    color: "rgba(61,109,255,0.15)",
-    border: "rgba(61,109,255,0.3)",
-    tag: "Core Flow",
-  },
-  {
-    title: "Proof Vault",
-    text: "Track submitted, verified, and rejected proof artifacts.",
-    href: "/student/proofs",
-    color: "rgba(0,200,150,0.1)",
-    border: "rgba(0,200,150,0.25)",
-    tag: "Evidence",
-  },
-  {
-    title: "My Readiness Score",
-    text: "View your score out of 100 with top gaps and next actions.",
-    href: "/student/readiness",
-    color: "rgba(255,123,26,0.1)",
-    border: "rgba(255,123,26,0.25)",
-    tag: "Score",
-  },
-  {
-    title: "Submit Proof",
-    text: "Upload evidence for completed checklist requirements.",
-    href: "/student/checklist",
-    color: "rgba(249,74,210,0.1)",
-    border: "rgba(249,74,210,0.22)",
-    tag: "Tasks",
-  },
-  {
-    title: "Interview Simulator",
-    text: "Practice AI interview questions tied to your submitted proofs.",
-    href: "/student/interview",
-    color: "rgba(61,109,255,0.1)",
-    border: "rgba(61,109,255,0.2)",
-    tag: "Prep",
-  },
-  {
-    title: "Skill Gap Builder",
-    text: "Translate missing skills into build targets and recruiter-facing proof.",
-    href: "/student/resume-architect",
-    color: "rgba(255,179,0,0.1)",
-    border: "rgba(255,179,0,0.22)",
-    tag: "Growth",
-  },
-  {
-    title: "My Plan",
-    text: "Confirm your major, pathway, and year-by-year roadmap.",
-    href: "/student/onboarding",
-    color: "rgba(0,200,150,0.08)",
-    border: "rgba(0,200,150,0.18)",
-    tag: "Pathway",
-  },
-  {
-    title: "Timeline",
-    text: "Stay aligned to year-based milestone targets.",
-    href: "/student/timeline",
-    color: "rgba(61,109,255,0.08)",
-    border: "rgba(61,109,255,0.15)",
-    tag: "Milestones",
-  },
-];
-
-function buildApiError(error: unknown, fallback: string): string {
-  if (isRateLimited(error)) {
-    const retry = getRetryAfterSeconds(error);
-    return retry
-      ? `Rate limit reached. Try again in ${retry}s.`
-      : "Rate limit reached. Please wait.";
-  }
-  return getErrorMessage(error) || fallback;
+/* ── Animated counter ───────────────────────────────────────── */
+function Counter({ to, suffix = "", prefix = "" }: { to: number; suffix?: string; prefix?: string }) {
+  const [val, setVal] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      obs.disconnect();
+      let start = 0;
+      const step = to / 50;
+      const t = setInterval(() => {
+        start += step;
+        setVal(Math.min(Math.round(start), to));
+        if (start >= to) clearInterval(t);
+      }, 28);
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [to]);
+  return <span ref={ref}>{prefix}{val.toLocaleString()}{suffix}</span>;
 }
 
-export default function Home() {
-  const { username, isLoggedIn } = useSession();
-  const displayName = formatDisplayName(username);
-  const headers = useMemo(() => ({ "X-User-Id": username }), [username]);
-
-  const [auditInput, setAuditInput] = useState("");
-  const [guide, setGuide] = useState<AiGuide | null>(null);
-  const [guideError, setGuideError] = useState<string | null>(null);
-  const [guideLoading, setGuideLoading] = useState(false);
-
-  const [roiTargetRole, setRoiTargetRole] = useState("");
-  const [roiCurrentSkills, setRoiCurrentSkills] = useState("");
-  const [roiLocation, setRoiLocation] = useState("");
-  const [roiBudget, setRoiBudget] = useState("");
-  const [roiResult, setRoiResult] = useState<AiCertRoiOut | null>(null);
-  const [roiError, setRoiError] = useState<string | null>(null);
-  const [roiLoading, setRoiLoading] = useState(false);
-
-  const [proofStats, setProofStats] = useState({ submitted: 0, verified: 0, rejected: 0 });
-  const [checklistCount, setChecklistCount] = useState<number | null>(null);
-  const [readinessScore, setReadinessScore] = useState<number | null>(null);
-  const [readinessRank, setReadinessRank] = useState<ReadinessRank | null>(null);
-  const [weeklyStreak, setWeeklyStreak] = useState<WeeklyMilestoneStreak | null>(null);
-
-  /* Resume scanner state */
-  type ScanResult = {
-    score: number;
-    band: string;
-    strengths: string[];
-    improvements: string[];
-    keywords_found: string[];
-    role_match: string;
-  };
-  const [scanFile, setScanFile] = useState<File | null>(null);
-  const [scanDragging, setScanDragging] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanLoading, setScanLoading] = useState(false);
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  const [scanError, setScanError] = useState<string | null>(null);
-
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
-
-  const handleScanFile = (file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      setScanError("File too large. Max 5MB.");
-      return;
-    }
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (!["pdf", "docx", "txt", "md", "doc", "rtf"].includes(ext ?? "")) {
-      setScanError("Unsupported file type. Use PDF, DOCX, or TXT.");
-      return;
-    }
-    setScanFile(file);
-    setScanError(null);
-    setScanResult(null);
-  };
-
-  const runResumeScan = async () => {
-    if (!scanFile) return;
-    setScanLoading(true);
-    setScanError(null);
-    setScanResult(null);
-    setScanProgress(0);
-
-    let prog = 0;
-    const ticker = setInterval(() => {
-      prog = Math.min(prog + Math.random() * 12, 88);
-      setScanProgress(Math.round(prog));
-    }, 300);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", scanFile);
-      const res = await fetch(`${API_BASE}/public/demo/resume-scan`, {
-        method: "POST",
-        body: formData,
-      });
-      clearInterval(ticker);
-      setScanProgress(100);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { detail?: string }).detail ?? `Error ${res.status}`);
-      }
-      const data = await res.json();
-      setScanResult(data as ScanResult);
-    } catch (e: unknown) {
-      clearInterval(ticker);
-      setScanProgress(0);
-      setScanError(e instanceof Error ? e.message : "Scan failed. Try again.");
-    } finally {
-      setScanLoading(false);
-    }
-  };
-
-  /* countdown animation for 2027 simulation */
-  const [score, setScore] = useState(82);
+/* ── Nav ────────────────────────────────────────────────────── */
+function Nav() {
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const delay = setTimeout(() => {
-      let current = 82;
-      const interval = setInterval(() => {
-        current -= 1;
-        setScore(current);
-        if (current <= 63) clearInterval(interval);
-      }, 30);
-      return () => clearInterval(interval);
-    }, 1200);
-    return () => clearTimeout(delay);
+    const h = () => setScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", h, { passive: true });
+    return () => window.removeEventListener("scroll", h);
   }, []);
+  return (
+    <nav className={`nav-glass${scrolled ? " scrolled" : ""}`}>
+      <div className="nav-inner">
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: "linear-gradient(135deg, #7c3aed, #06b6d4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <span className="material-symbols-outlined" style={{ color: "#fff", fontSize: 18 }}>bolt</span>
+          </div>
+          <span style={{ fontWeight: 800, fontSize: "1rem", letterSpacing: "-0.02em", color: "var(--fg)" }}>
+            MARKET<span style={{ color: "var(--primary-light)" }}>READY</span>
+          </span>
+        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <Link href="/login" className="btn btn-ghost btn-sm">Sign In</Link>
+          <Link href="/register" className="btn btn-primary btn-sm">Get Started →</Link>
+        </div>
+      </div>
+    </nav>
+  );
+}
 
-  const requireLogin = (setter: (msg: string | null) => void) => {
-    if (isLoggedIn) return false;
-    setter("Please log in to use this feature.");
-    return true;
-  };
+/* ── Floating orb ─────────────────────────────────────────── */
+function Orb({ size, color, style: extraStyle }: { size: number; color: string; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      position: "absolute",
+      width: size, height: size,
+      borderRadius: "50%",
+      background: color,
+      filter: `blur(${size * 0.6}px)`,
+      opacity: 0.18,
+      pointerEvents: "none",
+      ...extraStyle,
+    }} />
+  );
+}
 
-  const runAudit = async () => {
-    if (requireLogin(setGuideError)) return;
-    setGuideLoading(true);
-    setGuideError(null);
-    try {
-      const text = auditInput.trim();
-      const data = await apiSend<AiGuide>("/user/ai/guide", {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text || null, context_text: text || null }),
-      });
-      setGuide(data);
-    } catch (error) {
-      setGuideError(buildApiError(error, "AI audit unavailable."));
-    } finally {
-      setGuideLoading(false);
-    }
-  };
-
-  const runCertificationRoi = async () => {
-    if (requireLogin(setRoiError)) return;
-    setRoiLoading(true);
-    setRoiError(null);
-    try {
-      const parsedBudget = roiBudget.trim() ? Number(roiBudget) : null;
-      const data = await apiSend<AiCertRoiOut>("/user/ai/certification-roi", {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_role: roiTargetRole.trim() || null,
-          current_skills: roiCurrentSkills.trim() || null,
-          location: roiLocation.trim() || null,
-          max_budget_usd: parsedBudget !== null && Number.isFinite(parsedBudget) ? parsedBudget : null,
-        }),
-      });
-      setRoiResult(data);
-    } catch (error) {
-      setRoiError(buildApiError(error, "Certification ROI unavailable."));
-    } finally {
-      setRoiLoading(false);
-    }
-  };
-
+/* ── MRI Ring preview ───────────────────────────────────── */
+function MRIPreview() {
+  const r = 52, stroke = 9, circ = 2 * Math.PI * r;
+  const [score, setScore] = useState(0);
   useEffect(() => {
-    if (!isLoggedIn) {
-      setGuide(null);
-      setGuideError(null);
-      setRoiResult(null);
-      setRoiError(null);
-      setProofStats({ submitted: 0, verified: 0, rejected: 0 });
-      setChecklistCount(null);
-      setReadinessScore(null);
-      setReadinessRank(null);
-      setWeeklyStreak(null);
-      return;
-    }
-
-    let cancelled = false;
-    const loadDashboard = async () => {
-      const [proofsRes, checklistRes, readinessRes, rankRes, streakRes] = await Promise.allSettled([
-        apiGet<Proof[]>("/user/proofs", headers),
-        apiGet<ChecklistItem[]>("/user/checklist", headers),
-        apiGet<Readiness>("/user/readiness", headers),
-        apiGet<ReadinessRank>("/user/readiness/rank", headers),
-        apiGet<WeeklyMilestoneStreak>("/user/streak", headers),
-      ]);
-      if (cancelled) return;
-
-      if (proofsRes.status === "fulfilled") {
-        const stats = { submitted: 0, verified: 0, rejected: 0 };
-        proofsRes.value.forEach((p) => {
-          if (p.status === "verified") stats.verified++;
-          else if (p.status === "rejected") stats.rejected++;
-          else stats.submitted++;
-        });
-        setProofStats(stats);
-      }
-      setChecklistCount(checklistRes.status === "fulfilled" ? checklistRes.value.length : null);
-      setReadinessScore(readinessRes.status === "fulfilled" ? readinessRes.value.score : null);
-      setReadinessRank(rankRes.status === "fulfilled" ? rankRes.value : null);
-      setWeeklyStreak(streakRes.status === "fulfilled" ? streakRes.value : null);
-    };
-    loadDashboard().catch(() => {});
-    return () => { cancelled = true; };
-  }, [headers, isLoggedIn]);
-
-  const versionedSkills = isLoggedIn ? (checklistCount ?? 0) : 14;
-  const verifiedAssets = isLoggedIn ? proofStats.verified : 32;
-  const marketRankLabel = isLoggedIn
-    ? readinessRank
-      ? `Top ${Math.max(1, Math.round(100 - readinessRank.percentile + 1))}%`
-      : readinessScore !== null
-        ? readinessScore >= 80 ? "Top 15%" : "Climbing"
-        : "--"
-    : "Top 4%";
-
-  const scoreRisk = score <= 65 ? "HIGH" : score <= 72 ? "MODERATE" : "LOW";
-  const scoreDelta = 82 - score;
+    const t = setTimeout(() => {
+      let s = 0;
+      const iv = setInterval(() => { s += 2; setScore(Math.min(s, 87)); if (s >= 87) clearInterval(iv); }, 22);
+    }, 600);
+    return () => clearTimeout(t);
+  }, []);
+  const offset = circ * (1 - Math.min(score / 100, 1));
 
   return (
-    <main className="landing-stack" data-testid="home-page">
-      {/* Live ticker */}
-      <section className="market-ticker" aria-label="Live market signals" data-testid="market-ticker">
-        <div className="market-ticker-track">
-          {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
-            <span key={`${item}-${i}`} className="market-ticker-item">{item}</span>
+    <div style={{
+      background: "rgba(11,11,30,0.95)",
+      border: "1px solid rgba(124,58,237,0.3)",
+      borderRadius: 20, padding: "24px",
+      backdropFilter: "blur(24px)",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#7c3aed,#06b6d4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span className="material-symbols-outlined" style={{ color: "#fff", fontSize: 16 }}>analytics</span>
+          </div>
+          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--fg-2)" }}>Market-Ready Index</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 9999, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)" }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e" }} />
+          <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.08em" }}>LIVE</span>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <div style={{ position: "relative", width: 130, height: 130, flexShrink: 0 }}>
+          <svg width="130" height="130" viewBox="0 0 130 130" style={{ transform: "rotate(-90deg)" }}>
+            <circle cx="65" cy="65" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
+            <circle cx="65" cy="65" r={r} fill="none"
+              stroke="url(#mriGrad)" strokeWidth={stroke} strokeLinecap="round"
+              strokeDasharray={circ} strokeDashoffset={offset}
+              style={{ transition: "stroke-dashoffset 0.05s linear" }} />
+            <defs>
+              <linearGradient id="mriGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#7c3aed" />
+                <stop offset="100%" stopColor="#06b6d4" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: "2.1rem", fontWeight: 900, letterSpacing: "-0.04em", color: "#a78bfa", lineHeight: 1 }}>{score}</span>
+            <span style={{ fontSize: "0.6rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 3 }}>MRI</span>
+          </div>
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 11 }}>
+          {[
+            { label: "Federal Standards", pct: 88, color: "#7c3aed" },
+            { label: "Market Demand", pct: 82, color: "#06b6d4" },
+            { label: "Evidence Density", pct: 85, color: "#22c55e" },
+          ].map(b => (
+            <div key={b.label}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", marginBottom: 5 }}>
+                <span style={{ color: "var(--muted)" }}>{b.label}</span>
+                <span style={{ color: "var(--fg-2)", fontWeight: 700 }}>{b.pct}%</span>
+              </div>
+              <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${b.pct}%`, background: b.color, borderRadius: 4, transition: "width 0.8s ease" }} />
+              </div>
+            </div>
           ))}
         </div>
-      </section>
+      </div>
+      <div style={{ marginTop: 16, display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {["React", "Python", "AWS", "TypeScript", "Go"].map(s => (
+          <span key={s} style={{ fontSize: "0.65rem", fontWeight: 600, padding: "3px 10px", borderRadius: 9999, background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.25)", color: "#a78bfa" }}>{s}</span>
+        ))}
+      </div>
+      <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="material-symbols-outlined" style={{ color: "#22c55e", fontSize: 16, fontVariationSettings: "'FILL' 1" }}>verified</span>
+        <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#22c55e" }}>Market Ready — Top 12% of CS talent</span>
+      </div>
+    </div>
+  );
+}
 
-      {/* Hero */}
-      <section className="panel hero-stage" data-testid="hero-section">
-        <div className="hero-signal-pill" data-testid="hero-live-signal">
-          Live Market Signals Active
+/* ── Testimonial ────────────────────────────────────────── */
+function Testimonial({ quote, name, role, company, score }: { quote: string; name: string; role: string; company: string; score: number }) {
+  return (
+    <div style={{
+      background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: "28px",
+      display: "flex", flexDirection: "column", gap: 16, transition: "all 0.3s",
+    }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(124,58,237,0.3)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
+      <div style={{ display: "flex", gap: 3 }}>{[...Array(5)].map((_, i) => <span key={i} style={{ color: "#f59e0b", fontSize: 14 }}>★</span>)}</div>
+      <p style={{ fontSize: "0.875rem", color: "var(--fg-2)", lineHeight: 1.75, flex: 1 }}>&ldquo;{quote}&rdquo;</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--fg)" }}>{name}</div>
+          <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>{role} · {company}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: "1.2rem", fontWeight: 900, color: "#a78bfa" }}>{score}</div>
+          <div style={{ fontSize: "0.6rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>MRI</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main ─────────────────────────────────────────────────── */
+export default function LandingPage() {
+  return (
+    <div style={{ background: "var(--bg)", color: "var(--fg)", minHeight: "100dvh", overflowX: "hidden" }}>
+      <Nav />
+
+      {/* ══ HERO ══════════════════════════════════════════════ */}
+      <section style={{ position: "relative", minHeight: "100dvh", display: "flex", alignItems: "center", paddingTop: 100, paddingBottom: 80 }}>
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+          <Orb size={700} color="#7c3aed" style={{ top: "-5%", left: "-15%" }} />
+          <Orb size={550} color="#06b6d4" style={{ top: "5%", right: "-12%", animationDelay: "2s" }} />
+          <Orb size={400} color="#f43f5e" style={{ bottom: "0%", left: "25%", animationDelay: "4s" }} />
+          <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)", backgroundSize: "64px 64px" }} />
         </div>
 
-        <h1 className="hero-headline">
-          <span className="hero-headline-gradient">Are You Actually</span>{" "}
-          <span className="hero-emphasis">Hireable</span>
-          <span className="hero-headline-gradient"> — or Just Hopeful?</span>
-        </h1>
-
-        <p className="hero-copy" data-testid="hero-copy">
-          We combine live GitHub engineering signals with real hiring demand data,
-          then stress-test your career readiness against the next AI market shift.
-        </p>
-
-        {isLoggedIn && (
-          <p className="mt-4 text-sm" style={{ color: "var(--muted)" }}>
-            Welcome back, {displayName}.
-            {weeklyStreak && weeklyStreak.current_streak_weeks > 0 && (
-              <> Streak: {weeklyStreak.current_streak_weeks} week{weeklyStreak.current_streak_weeks !== 1 ? "s" : ""}</>
-            )}
-          </p>
-        )}
-
-        <div className="hero-actions">
-          <Link
-            href={isLoggedIn ? "/student/guide" : "/login"}
-            className="cta"
-            data-testid="hero-stress-test-btn"
-          >
-            Stress-Test My Career
-          </Link>
-        </div>
-      </section>
-
-      {/* ── AI Resume Scanner (public hook) ── */}
-      <section className="panel" id="resume-scanner" data-testid="resume-scanner-section">
-        <div className="text-center mb-6">
-          <span className="badge mb-3 inline-flex">// AI-POWERED ANALYSIS</span>
-          <h2 className="section-title mt-3">Find Out How Hireable You Really Are</h2>
-          <p className="section-subtitle mt-3 mx-auto" style={{ maxWidth: "540px" }}>
-            Upload your resume. Our AI analyzes it against today&apos;s job market in seconds — no account needed.
-          </p>
-        </div>
-
-        {/* Drop zone */}
-        {!scanResult && (
-          <label
-            htmlFor="resume-file-input"
-            className={`drop-zone${scanDragging ? " drag-active" : ""}${scanFile ? " has-file" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setScanDragging(true); }}
-            onDragLeave={() => setScanDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setScanDragging(false);
-              const f = e.dataTransfer.files[0];
-              if (f) handleScanFile(f);
-            }}
-          >
-            <input
-              id="resume-file-input"
-              type="file"
-              accept=".pdf,.docx,.doc,.txt,.md,.rtf"
-              className="sr-file-input"
-              aria-label="Upload resume file"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleScanFile(f);
-              }}
-            />
-            <div className="drop-zone-icon">📄</div>
-            {scanFile ? (
-              <p className="drop-zone-label">{scanFile.name}</p>
-            ) : (
-              <>
-                <p className="drop-zone-label">Drop your resume here or click to browse</p>
-                <p className="drop-zone-hint">PDF, DOCX, TXT — max 5 MB</p>
-              </>
-            )}
-          </label>
-        )}
-
-        {/* Progress */}
-        {scanLoading && (
-          <div
-            className="progress-track mt-4"
-            role="progressbar"
-            aria-label="Resume scan progress"
-            aria-valuenow={scanProgress}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <div className="progress-bar" style={{ width: `${scanProgress}%` }} />
-          </div>
-        )}
-
-        {/* Error */}
-        {scanError && (
-          <p className="scan-error-text" role="alert">{scanError}</p>
-        )}
-
-        {/* Scan button */}
-        {!scanResult && (
-          <div className="flex justify-center mt-5">
-            <button
-              type="button"
-              className={`cta${(!scanFile || scanLoading) ? " cta-disabled" : ""}`}
-              onClick={runResumeScan}
-              disabled={!scanFile || scanLoading}
-            >
-              {scanLoading ? `Analyzing… ${scanProgress}%` : "Analyze My Resume"}
-            </button>
-          </div>
-        )}
-
-        {/* Results */}
-        {scanResult && (
-          <div className="results-gate mt-6">
-            {/* Score ring + band */}
-            <div className="flex flex-col items-center mb-6">
-              <div
-                className="score-ring"
-                style={{
-                  "--score-pct": `${scanResult.score}`,
-                  "--score-color": scanResult.score >= 85 ? "var(--success)" : scanResult.score >= 65 ? "var(--primary)" : scanResult.score >= 45 ? "var(--warning)" : "var(--danger)"
-                } as React.CSSProperties}
-              >
-                <span className="score-ring-value">{scanResult.score}</span>
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "0 24px", width: "100%" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 460px", gap: 64, alignItems: "center" }}>
+            {/* Copy */}
+            <div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 14px 5px 9px", borderRadius: 9999, border: "1px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.08)", marginBottom: 28 }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
+                <span style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a78bfa" }}>Now Recruiting for Fall &apos;25</span>
               </div>
-              <p className="scan-band-label">
-                {scanResult.band} · {scanResult.role_match}
+              <h1 style={{ fontSize: "clamp(2.8rem,5.2vw,4.8rem)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1.05, marginBottom: 24 }}>
+                Stop Being<br />
+                <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4,#a78bfa)", backgroundSize: "200% auto", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", animation: "gradientShift 5s ease infinite" }}>Hireable.</span>
+                <br />Start Being<br />
+                <span style={{ background: "linear-gradient(135deg,#f43f5e,#a78bfa,#06b6d4)", backgroundSize: "200% auto", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", animation: "gradientShift 5s ease infinite 1s" }}>Undeniable.</span>
+              </h1>
+              <p style={{ fontSize: "1.05rem", color: "var(--fg-2)", lineHeight: 1.72, maxWidth: 500, marginBottom: 36 }}>
+                The traditional resume is dead. We build your proof-of-work profile using real market signals, GitHub evidence, and AI-driven insights — putting you in the elite 1% of CS talent.
               </p>
-            </div>
-
-            {/* Blurred strengths + improvements for guests */}
-            <div className="results-blur-wrapper">
-              <div className={!isLoggedIn ? "results-blur" : ""}>
-                <div className="grid gap-4 md:grid-cols-2 mb-4">
-                  <div className="scan-strengths-card">
-                    <p className="scan-strengths-label">Strengths</p>
-                    <ul className="space-y-1">
-                      {scanResult.strengths.map((s, i) => (
-                        <li key={i} className="scan-list-item">✓ {s}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="scan-improvements-card">
-                    <p className="scan-improvements-label">Improvements</p>
-                    <ul className="space-y-1">
-                      {scanResult.improvements.map((s, i) => (
-                        <li key={i} className="scan-list-item">→ {s}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                {scanResult.keywords_found.length > 0 && (
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {scanResult.keywords_found.map((kw, i) => (
-                      <span key={i} className="badge">{kw}</span>
-                    ))}
-                  </div>
-                )}
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 36 }}>
+                <Link href="/register" className="btn btn-primary btn-lg">
+                  Build My MRI Score
+                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_forward</span>
+                </Link>
+                <a href="#features" className="btn btn-glass btn-lg">
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>play_circle</span>
+                  See How It Works
+                </a>
               </div>
-
-              {/* Gate overlay for guests */}
-              {!isLoggedIn && (
-                <div className="gate-overlay">
-                  <p className="text-sm font-semibold mb-1">Your full report is ready</p>
-                  <p className="gate-subtitle">
-                    Create a free account to unlock your complete analysis + 5 powerful career tools
-                  </p>
-                  <div className="flex gap-3 justify-center flex-wrap">
-                    <Link href="/register" className="cta gate-cta">
-                      Get Full Results (Free)
-                    </Link>
-                    <Link href="/login" className="cta-outline gate-cta">
-                      Sign In
-                    </Link>
-                  </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ display: "flex" }}>
+                  {["#7c3aed","#06b6d4","#f43f5e","#22c55e","#f59e0b"].map((c, i) => (
+                    <div key={i} style={{ width: 30, height: 30, borderRadius: "50%", background: c, border: "2px solid var(--bg)", marginLeft: i > 0 ? -9 : 0 }} />
+                  ))}
                 </div>
-              )}
-            </div>
-
-            {/* Scan another */}
-            <div className="flex justify-center mt-6">
-              <button
-                type="button"
-                className="cta-outline scan-again-btn"
-                onClick={() => { setScanResult(null); setScanFile(null); setScanProgress(0); }}
-              >
-                Scan Another Resume
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="panel" id="methodology" data-testid="methodology-section">
-        <span className="badge">Methodology</span>
-        <h2 className="section-title mt-3">
-          What We Provide, How We Calculate It, and Why the Data Is Legitimate
-        </h2>
-        <p className="section-subtitle mt-3">
-          Market Ready combines federal skill standards, real vacancy signals, proof verification, and transparent formulas
-          so students can make decisions based on traceable evidence rather than guesswork.
-        </p>
-
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {PLATFORM_OVERVIEW.map((column) => (
-            <article
-              key={column.title}
-              className="rounded-2xl border p-5"
-              style={{ borderColor: "var(--border)", background: "rgba(61,109,255,0.06)" }}
-            >
-              <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>{column.title}</h3>
-              <ul className="mt-3 space-y-2 text-sm" style={{ color: "var(--muted)" }}>
-                {column.points.map((point) => (
-                  <li key={point} className="leading-relaxed">
-                    {point}
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </div>
-
-        <div className="divider" />
-
-        <h3 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
-          Calculation Logic
-        </h3>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {CALCULATION_DETAILS.map((item) => (
-            <article
-              key={item.title}
-              className="rounded-xl border p-4"
-              style={{ borderColor: "var(--border)", background: "rgba(8,12,30,0.55)" }}
-            >
-              <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{item.title}</p>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-                {item.description}
-              </p>
-            </article>
-          ))}
-        </div>
-
-        <div
-          className="mt-6 rounded-2xl border p-5"
-          style={{ borderColor: "var(--border-hi)", background: "rgba(0,200,150,0.08)" }}
-        >
-          <h3 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
-            Data Integrity and Trust Signals
-          </h3>
-          <ul className="mt-3 space-y-2 text-sm" style={{ color: "var(--muted)" }}>
-            {DATA_TRUST_POINTS.map((point) => (
-              <li key={point} className="leading-relaxed">{point}</li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="panel" id="benefits" data-testid="benefits-section">
-        <span className="badge">Services</span>
-        <h2 className="section-title mt-3">
-          Some of the Services We Offer
-        </h2>
-        <p className="section-subtitle mt-3">
-          These services are designed to move you from confusion to clear, job-ready execution.
-        </p>
-
-        <div className="action-grid mt-6">
-          {BENEFIT_PROMISES.map((benefit) => {
-            const isStudentRoute = benefit.href.startsWith("/student/");
-            const benefitHref = !isLoggedIn && isStudentRoute ? "/register" : benefit.href;
-            const benefitCta = !isLoggedIn && isStudentRoute ? "Start Your Plan" : benefit.cta;
-            return (
-              <article
-                key={benefit.title}
-                className="action-card"
-                data-testid={benefit.testId}
-                style={{ background: "rgba(61,109,255,0.08)", borderColor: "var(--border-hi)" }}
-              >
-                <h3 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
-                  {benefit.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-                  {benefit.detail}
-                </p>
-                <div className="mt-4">
-                  <Link href={benefitHref} className="cta cta-secondary">
-                    {benefitCta}
-                  </Link>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 2027 Simulation */}
-      <section
-        id="future-shock"
-        className="panel"
-        style={{ padding: "40px" }}
-        data-testid="simulation-section"
-      >
-        <div className="max-w-xl mx-auto text-center">
-          <span className="badge mb-4 inline-flex">2027 AI Shift Simulation</span>
-          <h2 className="section-title mt-3">What Happens to Your Score?</h2>
-          <p className="section-subtitle mt-3 mx-auto">
-            When AI demand surges 40% and generic frontend roles drop 25%, your readiness index shifts in real time.
-          </p>
-
-          <div className="mt-8 rounded-2xl border p-8" style={{ borderColor: "var(--border-hi)", background: "rgba(8,12,30,0.8)" }}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>Before</span>
-              <span className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>After 2027 Shift</span>
-            </div>
-
-            <div className="flex items-end justify-between gap-4">
-              <div className="text-center">
-                <div className="text-5xl font-extrabold" style={{ color: "var(--success)" }}>82</div>
-                <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>Current</div>
-              </div>
-              <div className="flex-1 h-px my-6" style={{ background: "var(--border)" }} />
-              <div className="text-center" data-testid="simulation-score">
-                <div
-                  className="text-7xl font-extrabold tabular-nums"
-                  style={{ color: score <= 65 ? "var(--danger)" : "var(--warning)" }}
-                >
-                  {score}
-                </div>
-                <div className="text-sm font-semibold mt-2" style={{ color: score <= 65 ? "var(--danger)" : "var(--warning)" }}>
-                  -{scoreDelta} &bull; {scoreRisk} RISK
+                <div>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--fg)" }}>12,400+ students</div>
+                  <div style={{ fontSize: "0.7rem", color: "var(--muted)" }}>already building their proof</div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-xl p-3 text-left" style={{ background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)" }}>
-                <div className="text-xs font-mono uppercase mb-1" style={{ color: "var(--danger)" }}>Threat</div>
-                <div style={{ color: "var(--muted)" }}>Generic frontend demand &darr; 25%</div>
-              </div>
-              <div className="rounded-xl p-3 text-left" style={{ background: "rgba(61,109,255,0.08)", border: "1px solid rgba(61,109,255,0.2)" }}>
-                <div className="text-xs font-mono uppercase mb-1" style={{ color: "var(--primary)" }}>Opportunity</div>
-                <div style={{ color: "var(--muted)" }}>AI skill demand &uarr; 40%</div>
-              </div>
+            {/* MRI Preview */}
+            <div style={{ animation: "float 6s ease-in-out infinite" }}>
+              <MRIPreview />
             </div>
           </div>
         </div>
       </section>
 
-      {isLoggedIn && (
-        <>
-      {/* AI Skill Gap Auditor */}
-      <section className="panel auditor-stage" id="audit-engine" data-testid="auditor-section">
-        <div className="auditor-header">
-          <div className="auditor-icon">
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--primary)" }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="section-title">Skill Gap Closing Auditor</h2>
-            <p className="section-subtitle mt-1">
-              Convert evidence context into concrete skill-gap actions tied to live demand.
-            </p>
-          </div>
-        </div>
-
-        <label className="auditor-label" htmlFor="audit-input">Paste Evidence Context</label>
-        <textarea
-          id="audit-input"
-          className="auditor-input"
-          value={auditInput}
-          onChange={(e) => setAuditInput(e.target.value)}
-          placeholder="Ex: Built a REST API with FastAPI, deployed to AWS, wrote unit tests with pytest..."
-          data-testid="audit-input"
-        />
-
-        <div className="auditor-actions">
-          {isLoggedIn ? (
-            <button
-              className="cta auditor-cta"
-              onClick={runAudit}
-              disabled={guideLoading}
-              data-testid="audit-submit-btn"
-            >
-              {guideLoading ? "Analyzing..." : "Generate Skill Gap Actions"}
-            </button>
-          ) : (
-            <Link className="cta auditor-cta" href="/login" data-testid="audit-login-btn">
-              Login to Run Audit
-            </Link>
+      {/* ══ TICKER ════════════════════════════════════════════ */}
+      <div style={{ overflow: "hidden", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "10px 0", background: "rgba(124,58,237,0.04)" }}>
+        <div style={{ display: "flex", minWidth: "max-content", animation: "tickerScroll 50s linear infinite", willChange: "transform" }}>
+          {[...Array(2)].map((_, d) =>
+            ["React · 92k jobs", "Python · 148k jobs", "AWS · 87k jobs", "TypeScript · 71k jobs",
+              "Kubernetes · 43k jobs", "Go · 38k jobs", "System Design · 95k jobs", "ML Ops · 52k jobs",
+              "Rust · 19k jobs", "SQL · 124k jobs", "Docker · 67k jobs"].map((item, i) => (
+              <div key={`${d}-${i}`} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "0 28px", fontFamily: "var(--font-mono)", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                <span style={{ color: "#a78bfa" }}>{item.split("·")[0].trim()}</span>
+                <span style={{ color: "var(--muted-2)" }}>·</span>
+                <span>{item.split("·")[1]?.trim()}</span>
+              </div>
+            ))
           )}
         </div>
+      </div>
 
-        {guideError && (
-          <p className="auditor-feedback auditor-feedback-error" data-testid="audit-error">{guideError}</p>
-        )}
+      {/* ══ BENTO FEATURES ════════════════════════════════════ */}
+      <section id="features" style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 64 }}>
+          <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Everything you need</div>
+          <h2 style={{ fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+            Built for the era of<br />
+            <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>proof-first hiring</span>
+          </h2>
+          <p style={{ fontSize: "0.95rem", color: "var(--muted)", marginTop: 16, maxWidth: 480, margin: "16px auto 0" }}>
+            Stop gambling with generic resumes. Get quantified, verifiable signals that make recruiters compete for you.
+          </p>
+        </div>
 
-        {guide && !guideLoading && (
-          <div className="auditor-results" data-testid="audit-results">
-            <div className="auditor-result-card">
-              <p className="auditor-result-label">Decision</p>
-              <p className="auditor-result-value">{guide.decision || "No decision returned."}</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {/* MRI wide */}
+          <div style={{ gridColumn: "span 2", background: "linear-gradient(135deg, var(--surface) 0%, rgba(124,58,237,0.08) 100%)", border: "1px solid var(--border)", borderRadius: 20, padding: "32px", transition: "all 0.3s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(124,58,237,0.3)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+              <span className="material-symbols-outlined" style={{ color: "#a78bfa", fontSize: 26 }}>monitoring</span>
             </div>
-            <div className="auditor-result-card">
-              <p className="auditor-result-label">Next Actions</p>
-              <ul className="auditor-result-list">
-                {(guide.next_actions?.length ? guide.next_actions : guide.recommendations?.length ? guide.recommendations : ["No actions returned."]).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="auditor-result-card">
-              <p className="auditor-result-label">Recommended Certificates</p>
-              <ul className="auditor-result-list">
-                {(guide.recommended_certificates?.length ? guide.recommended_certificates : ["No certificate recommendations."]).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-        {guide?.uncertainty && <p className="auditor-feedback">{guide.uncertainty}</p>}
-      </section>
-
-      {/* Certification ROI */}
-      <section className="panel" id="cert-roi" data-testid="cert-roi-section">
-        <div className="auditor-header">
-          <div className="auditor-icon">
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" style={{ color: "var(--accent)" }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="section-title">Certification ROI Calculator</h2>
-            <p className="section-subtitle mt-1">
-              Compare cert cost, time, salary impact, difficulty and demand trend — AI-powered.
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: 10 }}>Market-Ready Index (MRI)</h3>
+            <p style={{ fontSize: "0.875rem", color: "var(--muted)", lineHeight: 1.7, maxWidth: 400 }}>
+              A single composite score built from three real signals: federal employer standards (40%), live market demand (30%), and your evidence density (30%). Updated daily from 50k+ job postings.
             </p>
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm" style={{ color: "var(--muted)" }}>
-            Target Role
-            <input
-              className="rounded-xl border p-3 text-sm"
-              style={{ borderColor: "var(--input-border)", background: "var(--input-bg)" }}
-              value={roiTargetRole}
-              onChange={(e) => setRoiTargetRole(e.target.value)}
-              placeholder="e.g. Software Engineer"
-              data-testid="roi-role-input"
-            />
-          </label>
-          <label className="flex flex-col gap-2 text-sm" style={{ color: "var(--muted)" }}>
-            Location
-            <input
-              className="rounded-xl border p-3 text-sm"
-              style={{ borderColor: "var(--input-border)", background: "var(--input-bg)" }}
-              value={roiLocation}
-              onChange={(e) => setRoiLocation(e.target.value)}
-              placeholder="e.g. United States"
-              data-testid="roi-location-input"
-            />
-          </label>
-          <label className="flex flex-col gap-2 text-sm md:col-span-2" style={{ color: "var(--muted)" }}>
-            Current Skills
-            <textarea
-              className="rounded-xl border p-3 text-sm min-h-20 resize-none"
-              style={{ borderColor: "var(--input-border)", background: "var(--input-bg)" }}
-              value={roiCurrentSkills}
-              onChange={(e) => setRoiCurrentSkills(e.target.value)}
-              placeholder="HTML, CSS, JavaScript, React basics..."
-              data-testid="roi-skills-input"
-            />
-          </label>
-          <label className="flex flex-col gap-2 text-sm" style={{ color: "var(--muted)" }}>
-            Max Budget (USD, optional)
-            <input
-              type="number"
-              min={0}
-              className="rounded-xl border p-3 text-sm"
-              style={{ borderColor: "var(--input-border)", background: "var(--input-bg)" }}
-              value={roiBudget}
-              onChange={(e) => setRoiBudget(e.target.value)}
-              placeholder="300"
-              data-testid="roi-budget-input"
-            />
-          </label>
-        </div>
-
-        <div className="mt-5">
-          {isLoggedIn ? (
-            <button
-              className="cta cta-accent"
-              onClick={runCertificationRoi}
-              disabled={roiLoading}
-              data-testid="roi-submit-btn"
-            >
-              {roiLoading ? "Calculating..." : "Calculate Certification ROI"}
-            </button>
-          ) : (
-            <Link className="cta cta-accent" href="/login" data-testid="roi-login-btn">
-              Login to Calculate ROI
-            </Link>
-          )}
-        </div>
-
-        {roiError && (
-          <p className="auditor-feedback auditor-feedback-error" data-testid="roi-error">{roiError}</p>
-        )}
-
-        {roiResult && (
-          <div className="mt-5 grid gap-4" data-testid="roi-results">
-            <div className="auditor-result-card">
-              <p className="auditor-result-label">Recommendation</p>
-              <p className="mt-2" style={{ fontSize: "15px" }}>{roiResult.recommendation}</p>
-              {roiResult.winner && (
-                <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>Best ROI: <strong>{roiResult.winner}</strong></p>
-              )}
+            <div style={{ marginTop: 20, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {["40% Federal Standards", "30% Market Demand", "30% Evidence"].map((b, i) => (
+                <span key={b} style={{ fontSize: "0.7rem", fontWeight: 600, padding: "4px 12px", borderRadius: 9999, background: ["rgba(124,58,237,0.1)","rgba(6,182,212,0.1)","rgba(34,197,94,0.1)"][i], color: ["#a78bfa","#06b6d4","#22c55e"][i], border: `1px solid ${["rgba(124,58,237,0.25)","rgba(6,182,212,0.25)","rgba(34,197,94,0.25)"][i]}` }}>{b}</span>
+              ))}
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {roiResult.top_options.map((item) => (
-                <div className="auditor-result-card" key={item.certificate}>
-                  <p className="auditor-result-label">{item.certificate}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xl font-bold tabular-nums" style={{ color: item.roi_score >= 70 ? "var(--success)" : item.roi_score >= 50 ? "var(--warning)" : "var(--muted)" }}>
-                      {item.roi_score}
-                    </span>
-                    <span className="text-xs" style={{ color: "var(--muted)" }}>/ 100</span>
-                  </div>
-                  <ul className="auditor-result-list mt-2">
-                    <li>Cost: {item.cost_usd}</li>
-                    <li>Time: {item.time_required}</li>
-                    <li>Salary: {item.entry_salary_range}</li>
-                    <li>Difficulty: {item.difficulty_level}</li>
-                    <li>Demand: {item.demand_trend}</li>
-                  </ul>
-                  <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>{item.why_it_helps}</p>
+          </div>
+
+          {/* AI tall */}
+          <div style={{ background: "linear-gradient(180deg, var(--surface) 0%, rgba(6,182,212,0.07) 100%)", border: "1px solid var(--border)", borderRadius: 20, padding: "28px", transition: "all 0.3s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(6,182,212,0.3)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
+            <div style={{ width: 48, height: 48, borderRadius: 13, background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+              <span className="material-symbols-outlined" style={{ color: "#06b6d4", fontSize: 24 }}>psychology</span>
+            </div>
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: 8 }}>AI Skill Verification</h3>
+            <p style={{ fontSize: "0.82rem", color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
+              LLMs analyze your GitHub commits, PR descriptions, and code quality to verify skill claims — not just buzzwords.
+            </p>
+            <div style={{ padding: "12px 14px", background: "rgba(6,182,212,0.06)", borderRadius: 10, border: "1px solid rgba(6,182,212,0.15)" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.68rem", color: "#06b6d4", lineHeight: 2 }}>
+                <div>✓ React: 847 production commits</div>
+                <div>✓ AWS: 12 deployed services</div>
+                <div>✓ Python: 94th percentile</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3 smaller cards */}
+          {[
+            { icon: "hub", title: "GitHub Proof Engine", desc: "Extract language depth, commit patterns, project complexity, and collaboration signals from every repo.", accent: "#22c55e" },
+            { icon: "trending_up", title: "Live Market Intel", desc: "Powered by Adzuna and O*NET APIs, tracking 50k+ job postings daily. Your checklist updates in real-time.", accent: "#f59e0b" },
+            { icon: "view_kanban", title: "90-Day Sprint Board", desc: "AI generates a personalized 12-task roadmap synced to your GitHub. Track progress, ship proof every week.", accent: "#f43f5e" },
+          ].map(f => (
+            <div key={f.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: "28px", transition: "all 0.3s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = `${f.accent}40`; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: `${f.accent}15`, border: `1px solid ${f.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                <span className="material-symbols-outlined" style={{ color: f.accent, fontSize: 22 }}>{f.icon}</span>
+              </div>
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ fontSize: "0.82rem", color: "var(--muted)", lineHeight: 1.65 }}>{f.desc}</p>
+            </div>
+          ))}
+
+          {/* Wide bottom card */}
+          <div style={{ gridColumn: "span 3", background: "linear-gradient(135deg, rgba(244,63,94,0.05) 0%, var(--surface) 40%, rgba(124,58,237,0.05) 100%)", border: "1px solid var(--border)", borderRadius: 20, padding: "32px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 32 }}>
+              {[
+                { icon: "share", title: "Public Profile + QR", desc: "Shareable proof-of-work page with QR code for career fairs and interviews." },
+                { icon: "description", title: "Resume Architect", desc: "AI-powered resume builder using your verified proof signals and market alignment." },
+                { icon: "school", title: "Interview Coach", desc: "Domain-specific prep sessions based on your actual skill gaps and target roles." },
+                { icon: "radar", title: "Sentinel Alerts", desc: "Get notified instantly when market shifts require action on your profile." },
+              ].map(f => (
+                <div key={f.title}>
+                  <span className="material-symbols-outlined" style={{ color: "#a78bfa", fontSize: 22, marginBottom: 10, display: "block" }}>{f.icon}</span>
+                  <div style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: 6, color: "var(--fg)" }}>{f.title}</div>
+                  <div style={{ fontSize: "0.78rem", color: "var(--muted)", lineHeight: 1.65 }}>{f.desc}</div>
                 </div>
               ))}
             </div>
           </div>
-        )}
+        </div>
       </section>
 
-      {/* Proof Vault Stats */}
-      <section className="panel vault-stage" id="signals" data-testid="vault-section">
-        <div className="vault-head">
-          <h2 className="section-title">The Proof Vault</h2>
-          <p className="section-subtitle">Where skills become evidence and readiness becomes measurable.</p>
+      {/* ══ STATS ═════════════════════════════════════════════ */}
+      <section style={{ background: "var(--surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "72px 24px" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 32 }}>
+          {[
+            { val: 12400, suf: "+", label: "Students enrolled", icon: "school" },
+            { val: 98, suf: "%", label: "Placement rate", icon: "trending_up" },
+            { val: 50000, suf: "+", label: "Jobs analyzed daily", icon: "work" },
+            { val: 320, suf: "%", label: "Higher offer rate", icon: "rocket_launch" },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <span className="material-symbols-outlined" style={{ color: "#a78bfa", fontSize: 30, marginBottom: 14, display: "block" }}>{s.icon}</span>
+              <div style={{ fontSize: "2.6rem", fontWeight: 900, letterSpacing: "-0.04em", color: "var(--fg)", lineHeight: 1 }}>
+                <Counter to={s.val} suffix={s.suf} />
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: 8 }}>{s.label}</div>
+            </div>
+          ))}
         </div>
-
-        <div className="vault-grid mt-6">
-          <article className="vault-card vault-card-blue" data-testid="vault-skills-count">
-            <p className="vault-label">Versioned Skills</p>
-            <p className="vault-value">{versionedSkills}</p>
-          </article>
-          <article className="vault-card vault-card-green" data-testid="vault-verified-count">
-            <p className="vault-label">Verified Assets</p>
-            <p className="vault-value">{verifiedAssets}</p>
-          </article>
-          <article className="vault-card vault-card-purple" data-testid="vault-market-rank">
-            <p className="vault-label">Market Rank</p>
-            <p className="vault-value">{marketRankLabel}</p>
-          </article>
-        </div>
-
-        {isLoggedIn && readinessRank && (
-          <p className="mt-4 text-sm text-center" style={{ color: "var(--muted)" }}>
-            Global rank: #{readinessRank.rank} of {readinessRank.total_students}
-          </p>
-        )}
       </section>
-        </>
-      )}
 
-      {/* Quick Links Bento Grid (authenticated) */}
-      {isLoggedIn && (
-        <section data-testid="quick-links-section">
-          <div className="mb-5 flex items-center gap-3">
-            <span className="badge">Dashboard</span>
-            <h2 className="text-lg font-semibold">Your Workspace</h2>
+      {/* ══ TESTIMONIALS ══════════════════════════════════════ */}
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Student success</div>
+          <h2 style={{ fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
+            From the students who<br />
+            <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>made it happen</span>
+          </h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+          <Testimonial quote="I went from 40 applications with zero callbacks to 6 offers in 3 weeks. My MRI score went from 54 to 91 after targeting the exact gaps MarketReady showed me." name="Alex Chen" role="SWE Intern" company="Google" score={91} />
+          <Testimonial quote="The GitHub proof engine found patterns in my code I hadn't thought to mention. Recruiters now ask me about specific projects before the interview even starts." name="Priya Patel" role="ML Engineer" company="OpenAI" score={88} />
+          <Testimonial quote="The market intel is insane — it told me to pick up Rust 3 months before Rust postings spiked 40%. I was already ahead of the curve when it happened." name="Marcus Johnson" role="Systems Engineer" company="Stripe" score={94} />
+        </div>
+      </section>
+
+      {/* ══ PRICING ═══════════════════════════════════════════ */}
+      <section id="pricing" style={{ background: "var(--surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "96px 24px" }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Pricing</div>
+            <h2 style={{ fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
+              Invest in your<br />
+              <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>undeniability</span>
+            </h2>
           </div>
-          <div className="action-grid">
-            {QUICK_LINKS.map((card) => (
-              <Link
-                key={card.title}
-                href={card.href}
-                className="action-card group"
-                style={{
-                  background: card.color,
-                  borderColor: card.border,
-                }}
-                data-testid={`quick-link-${card.title.toLowerCase().replace(/\s+/g, "-")}`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <span
-                    className="text-xs font-mono uppercase tracking-widest px-2 py-1 rounded-md"
-                    style={{ background: "rgba(255,255,255,0.06)", color: "var(--muted)" }}
-                  >
-                    {card.tag}
-                  </span>
-                  <svg
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    width="16" height="16" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor" strokeWidth="2"
-                    style={{ color: "var(--primary)" }}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, alignItems: "start" }}>
+            {[
+              { name: "Free", price: "$0", period: "/month", desc: "Start building your MRI score.", features: ["MRI score (limited)", "Basic checklist (10 items)", "GitHub analysis", "Public profile", "3 proof uploads"], cta: "Get Started", href: "/register", hi: false },
+              { name: "Elite", price: "$99", period: "/one-time", desc: "Everything you need to land your dream offer.", features: ["Full MRI score + history", "Unlimited proof uploads", "AI skill verification", "Resume Architect AI", "Interview Coach", "Live Market Intel", "90-Day Kanban board", "Priority support"], cta: "Go Elite →", href: "/register?plan=elite", hi: true },
+              { name: "Pro", price: "$29", period: "/month", desc: "Ongoing market edge, every month.", features: ["All Elite features", "Daily market updates", "Sentinel shift alerts", "Advanced analytics", "API access", "White-label profile"], cta: "Start Pro", href: "/register?plan=pro", hi: false },
+            ].map(plan => (
+              <div key={plan.name} style={{
+                background: plan.hi ? "linear-gradient(160deg, rgba(124,58,237,0.15) 0%, rgba(6,182,212,0.06) 100%)" : "var(--void)",
+                border: `1px solid ${plan.hi ? "rgba(124,58,237,0.5)" : "var(--border)"}`,
+                borderRadius: 20, padding: "32px 28px",
+                position: "relative",
+                transform: plan.hi ? "scale(1.04)" : "none",
+                boxShadow: plan.hi ? "0 0 80px rgba(124,58,237,0.2), 0 0 0 1px rgba(124,58,237,0.1)" : undefined,
+              }}>
+                {plan.hi && (
+                  <div style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,#7c3aed,#06b6d4)", color: "#fff", fontSize: "0.65rem", fontWeight: 800, padding: "5px 16px", borderRadius: 9999, letterSpacing: "0.1em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                    Most Popular
+                  </div>
+                )}
+                <div style={{ fontSize: "0.75rem", fontWeight: 700, color: plan.hi ? "#a78bfa" : "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{plan.name}</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 8 }}>
+                  <span style={{ fontSize: "2.6rem", fontWeight: 900, letterSpacing: "-0.04em", color: "var(--fg)" }}>{plan.price}</span>
+                  <span style={{ fontSize: "0.78rem", color: "var(--muted)" }}>{plan.period}</span>
                 </div>
-                <h3 className="font-semibold text-base" style={{ color: "var(--foreground)" }}>
-                  {card.title}
-                </h3>
-                <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{card.text}</p>
-              </Link>
+                <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: 24 }}>{plan.desc}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 28 }}>
+                  {plan.features.map(f => (
+                    <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: "0.8rem", color: "var(--fg-2)" }}>
+                      <span style={{ color: plan.hi ? "#a78bfa" : "#22c55e", fontSize: 14, flexShrink: 0 }}>✓</span>
+                      {f}
+                    </div>
+                  ))}
+                </div>
+                <Link href={plan.href} style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: "100%", padding: "12px 20px", borderRadius: 12,
+                  background: plan.hi ? "linear-gradient(135deg,#7c3aed,#5b21b6)" : "transparent",
+                  border: `1px solid ${plan.hi ? "transparent" : "var(--border-2)"}`,
+                  color: plan.hi ? "#fff" : "var(--fg-2)",
+                  fontWeight: 700, fontSize: "0.9rem", textDecoration: "none",
+                  boxShadow: plan.hi ? "0 4px 20px rgba(124,58,237,0.4)" : undefined,
+                  transition: "all 0.2s",
+                }}>
+                  {plan.cta}
+                </Link>
+              </div>
             ))}
           </div>
-        </section>
-      )}
-    </main>
+        </div>
+      </section>
+
+      {/* ══ CTA ═══════════════════════════════════════════════ */}
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
+        <div style={{
+          position: "relative", overflow: "hidden",
+          background: "linear-gradient(135deg, rgba(124,58,237,0.15) 0%, rgba(6,182,212,0.08) 50%, rgba(244,63,94,0.08) 100%)",
+          border: "1px solid rgba(124,58,237,0.3)", borderRadius: 28, padding: "72px 48px", textAlign: "center",
+        }}>
+          <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+            <Orb size={500} color="#7c3aed" style={{ top: "-30%", left: "-10%" }} />
+            <Orb size={400} color="#06b6d4" style={{ bottom: "-30%", right: "-5%" }} />
+          </div>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a78bfa", marginBottom: 20 }}>The offer is waiting</div>
+            <h2 style={{ fontSize: "clamp(2rem,4vw,3.5rem)", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: 16, lineHeight: 1.1 }}>
+              Your first MRI score is<br />
+              <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>completely free.</span>
+            </h2>
+            <p style={{ fontSize: "1rem", color: "var(--muted)", maxWidth: 440, margin: "0 auto 36px" }}>
+              Join 12,400+ CS students who stopped hoping and started proving. Setup takes 3 minutes.
+            </p>
+            <Link href="/register" style={{
+              display: "inline-flex", alignItems: "center", gap: 10,
+              padding: "15px 36px", borderRadius: 14,
+              background: "linear-gradient(135deg,#7c3aed,#5b21b6)",
+              color: "#fff", fontWeight: 800, fontSize: "1rem", textDecoration: "none",
+              boxShadow: "0 8px 32px rgba(124,58,237,0.45)",
+              transition: "all 0.2s",
+            }}>
+              Get My Free MRI Score
+              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_forward</span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ FOOTER ════════════════════════════════════════════ */}
+      <footer style={{ borderTop: "1px solid var(--border)", padding: "56px 24px 32px", background: "var(--void)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 40, marginBottom: 40 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#7c3aed,#06b6d4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span className="material-symbols-outlined" style={{ color: "#fff", fontSize: 16 }}>bolt</span>
+              </div>
+              <span style={{ fontWeight: 800, fontSize: "0.95rem", letterSpacing: "-0.02em" }}>MARKET<span style={{ color: "#a78bfa" }}>READY</span></span>
+            </div>
+            <p style={{ fontSize: "0.78rem", color: "var(--muted)", lineHeight: 1.75, maxWidth: 230, marginBottom: 16 }}>
+              Proof-first career acceleration for CS students. Stop being hireable. Start being undeniable.
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e" }} />
+              <span style={{ fontSize: "0.7rem", color: "var(--muted-2)" }}>All systems operational</span>
+            </div>
+          </div>
+          {[
+            { title: "Product", links: ["MRI Score", "Checklist", "GitHub Proof", "Resume Architect", "Interview Coach"] },
+            { title: "Company", links: ["About", "Blog", "Careers", "Press", "Contact"] },
+            { title: "Legal", links: ["Privacy Policy", "Terms of Service", "Cookie Policy", "FERPA Compliance"] },
+          ].map(col => (
+            <div key={col.title}>
+              <div style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted-2)", marginBottom: 16 }}>{col.title}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {col.links.map(l => (
+                  <a key={l} href="#" style={{ fontSize: "0.8rem", color: "var(--muted)", textDecoration: "none", transition: "color 0.15s" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--fg-2)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--muted)")}>{l}</a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ maxWidth: 1200, margin: "0 auto", paddingTop: 24, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <span style={{ fontSize: "0.72rem", color: "var(--muted-2)" }}>© 2025 MarketReady. Built for the proof-first generation.</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            {["Twitter", "LinkedIn", "GitHub"].map(s => (
+              <a key={s} href="#" style={{ fontSize: "0.72rem", color: "var(--muted-2)", textDecoration: "none", padding: "5px 10px", borderRadius: 7, border: "1px solid var(--border)", transition: "all 0.15s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = "var(--fg)"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--border-2)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = "var(--muted-2)"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--border)"; }}>{s}</a>
+            ))}
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }

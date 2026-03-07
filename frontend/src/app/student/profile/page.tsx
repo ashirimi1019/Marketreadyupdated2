@@ -5,7 +5,6 @@ import { apiGet, apiSend, API_BASE, getAuthHeaders } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import dynamic from "next/dynamic";
 
-// QR code - dynamically imported to avoid SSR issues
 const QRCodeSVG = dynamic(
   () => import("qrcode.react").then(mod => ({ default: mod.QRCodeSVG })),
   { ssr: false }
@@ -26,15 +25,144 @@ type StudentProfile = {
   resume_uploaded_at?: string | null;
 };
 
-type ChecklistItem = {
-  id: string;
-  status: string;
-};
+type ChecklistItem = { id: string; status: string };
+type Readiness = { score: number; band: string };
 
-type Readiness = {
-  score: number;
-  band: string;
-};
+function InputField({
+  label, value, onChange, placeholder, disabled, type = "text",
+}: {
+  label: string; value: string; onChange: (v: string) => void; placeholder: string; disabled: boolean; type?: string;
+}) {
+  return (
+    <div>
+      <label style={{ display: "block", fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 7 }}>
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        style={{
+          width: "100%", padding: "11px 14px", borderRadius: 11, border: "1px solid var(--border)",
+          background: disabled ? "var(--surface-2)" : "var(--surface-2)", color: disabled ? "var(--muted)" : "var(--fg)",
+          fontSize: "0.85rem", outline: "none", transition: "border-color 0.15s",
+        }}
+        onFocus={e => e.target.style.borderColor = "rgba(124,58,237,0.5)"}
+        onBlur={e => e.target.style.borderColor = "var(--border)"}
+      />
+    </div>
+  );
+}
+
+function SharePanel() {
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const generate = async () => {
+    setLoading(true);
+    try {
+      const data = await apiSend<{ share_url: string; share_slug: string }>("/profile/generate-share-link", { method: "POST" });
+      setShareUrl(data.share_url);
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  const copyLink = async () => {
+    if (!shareUrl) return;
+    await navigator.clipboard.writeText(shareUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div style={{ background: "var(--surface)", borderRadius: 16, padding: 22, border: "1px solid rgba(6,182,212,0.25)" }} data-testid="share-panel">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 20, color: "#06b6d4" }}>share</span>
+        <h3 style={{ fontSize: "1rem", fontWeight: 700 }}>Share with Recruiters</h3>
+      </div>
+      <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: 18 }}>
+        Generate a public, verified profile link — no signup required for recruiters.
+      </p>
+      {!shareUrl ? (
+        <button
+          onClick={generate}
+          disabled={loading}
+          data-testid="generate-share-link-btn"
+          style={{
+            display: "flex", alignItems: "center", gap: 7, padding: "11px 20px", borderRadius: 11,
+            border: "none", background: "linear-gradient(135deg,#06b6d4,#0284c7)", color: "#fff",
+            fontWeight: 700, fontSize: "0.85rem", cursor: "pointer",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>link</span>
+          {loading ? "Generating..." : "Generate Share Link"}
+        </button>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              readOnly
+              value={shareUrl}
+              data-testid="share-link-input"
+              style={{
+                flex: 1, padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)",
+                background: "var(--surface-2)", color: "var(--fg-2)", fontSize: "0.8rem", fontFamily: "var(--font-mono)",
+              }}
+            />
+            <button
+              onClick={copyLink}
+              data-testid="copy-link-btn"
+              style={{
+                padding: "10px 18px", borderRadius: 10, border: "1px solid var(--border)",
+                background: copied ? "rgba(34,197,94,0.12)" : "var(--surface-2)",
+                color: copied ? "#22c55e" : "var(--fg-2)", fontWeight: 700, fontSize: "0.82rem", cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          {QRCodeSVG && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <p style={{ fontSize: "0.72rem", color: "var(--muted)" }}>QR Code for recruiters</p>
+              <div style={{ padding: 12, borderRadius: 14, background: "#fff" }} data-testid="qr-code">
+                <QRCodeSVG value={shareUrl} size={140} />
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <a
+              href={shareUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="view-public-profile-btn"
+              style={{
+                flex: 1, textAlign: "center", padding: "10px", borderRadius: 10,
+                border: "1px solid var(--border)", background: "var(--surface-2)",
+                color: "var(--fg-2)", fontWeight: 600, fontSize: "0.82rem", textDecoration: "none",
+              }}
+            >
+              Preview Profile
+            </a>
+            <button
+              onClick={generate}
+              data-testid="regenerate-link-btn"
+              style={{
+                flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border)",
+                background: "transparent", color: "var(--muted)", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer",
+              }}
+            >
+              Regenerate
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StudentProfilePage() {
   const { username, isLoggedIn } = useSession();
@@ -56,89 +184,53 @@ export default function StudentProfilePage() {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [deletingResume, setDeletingResume] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    apiGet<StudentProfile>("/user/profile", headers)
-      .then((data) => {
-        setSemester(data.semester ?? "");
-        setState(data.state ?? "");
-        setUniversity(data.university ?? "");
-        setGithubUsername(data.github_username ?? "");
-        setMastersInterest(Boolean(data.masters_interest));
-        setMastersTarget(data.masters_target ?? "");
-        setMastersTimeline(data.masters_timeline ?? "");
-        setMastersStatus(data.masters_status ?? "");
-        setResumeUrl(data.resume_url ?? null);
-        setResumeViewUrl(data.resume_view_url ?? null);
-        setResumeFilename(data.resume_filename ?? null);
-        setResumeUploadedAt(data.resume_uploaded_at ?? null);
-      })
-      .catch(() => {
-        // profile may not exist yet
-      });
+    apiGet<StudentProfile>("/user/profile", headers).then(data => {
+      setSemester(data.semester ?? "");
+      setState(data.state ?? "");
+      setUniversity(data.university ?? "");
+      setGithubUsername(data.github_username ?? "");
+      setMastersInterest(Boolean(data.masters_interest));
+      setMastersTarget(data.masters_target ?? "");
+      setMastersTimeline(data.masters_timeline ?? "");
+      setMastersStatus(data.masters_status ?? "");
+      setResumeUrl(data.resume_url ?? null);
+      setResumeViewUrl(data.resume_view_url ?? null);
+      setResumeFilename(data.resume_filename ?? null);
+      setResumeUploadedAt(data.resume_uploaded_at ?? null);
+    }).catch(() => {});
   }, [headers, isLoggedIn]);
 
+  const setMsg = (msg: string, type: "success" | "error" = "success") => {
+    setMessage(msg); setMessageType(type);
+  };
+
   const saveProfile = async () => {
-    if (!isLoggedIn) {
-      setMessage("Please log in to save your profile.");
-      return;
-    }
-    setMessage(null);
-    setSaving(true);
+    if (!isLoggedIn) { setMsg("Please log in to save your profile.", "error"); return; }
+    setMessage(null); setSaving(true);
     try {
       await apiSend("/user/profile", {
-        method: "PUT",
-        headers: {
-          ...headers,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          semester,
-          state,
-          university,
-          masters_interest: mastersInterest,
-          masters_target: mastersTarget || null,
-          masters_timeline: mastersTimeline || null,
-          masters_status: mastersStatus || null,
-          github_username: githubUsername || null,
-        }),
+        method: "PUT", headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ semester, state, university, masters_interest: mastersInterest, masters_target: mastersTarget || null, masters_timeline: mastersTimeline || null, masters_status: mastersStatus || null, github_username: githubUsername || null }),
       });
-      setMessage("Profile saved.");
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Failed to save profile."
-      );
-    } finally {
-      setSaving(false);
-    }
+      setMsg("Profile saved successfully.");
+    } catch (error) { setMsg(error instanceof Error ? error.message : "Failed to save profile.", "error"); }
+    finally { setSaving(false); }
   };
 
   const uploadResume = async () => {
-    if (!isLoggedIn) {
-      setMessage("Please log in to upload your resume.");
-      return;
-    }
-    if (!resumeFile) {
-      setMessage("Choose a resume file first.");
-      return;
-    }
-
-    setMessage(null);
-    setUploadingResume(true);
+    if (!isLoggedIn) { setMsg("Please log in to upload your resume.", "error"); return; }
+    if (!resumeFile) { setMsg("Choose a resume file first.", "error"); return; }
+    setMessage(null); setUploadingResume(true);
     try {
       const form = new FormData();
       form.append("file", resumeFile);
-      const response = await fetch(`${API_BASE}/user/profile/resume`, {
-        method: "POST",
-        headers: getAuthHeaders(headers),
-        body: form,
-      });
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Resume upload failed: ${text}`);
-      }
+      const response = await fetch(`${API_BASE}/user/profile/resume`, { method: "POST", headers: getAuthHeaders(headers), body: form });
+      if (!response.ok) throw new Error(`Resume upload failed: ${await response.text()}`);
       const data = (await response.json()) as StudentProfile;
       setResumeUrl(data.resume_url ?? null);
       setResumeViewUrl(data.resume_view_url ?? null);
@@ -149,319 +241,207 @@ export default function StudentProfilePage() {
         apiGet<ChecklistItem[]>("/user/checklist", headers).catch(() => []),
         apiGet<Readiness>("/user/readiness", headers).catch(() => null),
       ]);
-      const resumeSatisfiedCount = checklist.filter(
-        (item) => item.status === "satisfied by resume upload"
-      ).length;
-      const readinessText = readiness
-        ? ` Readiness updated to ${readiness.score.toFixed(0)}/100 (${readiness.band}).`
-        : "";
-      setMessage(
-        `Resume uploaded and saved to your account.${resumeSatisfiedCount > 0 ? ` ${resumeSatisfiedCount} requirement(s) were auto-satisfied from resume evidence.` : ""}${readinessText}`
-      );
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Failed to upload resume."
-      );
-    } finally {
-      setUploadingResume(false);
-    }
+      const resumeSatisfied = checklist.filter(i => i.status === "satisfied by resume upload").length;
+      const readinessText = readiness ? ` MRI updated to ${readiness.score.toFixed(0)}/100 (${readiness.band}).` : "";
+      setMsg(`Resume uploaded.${resumeSatisfied > 0 ? ` ${resumeSatisfied} requirement(s) auto-satisfied.` : ""}${readinessText}`);
+    } catch (error) { setMsg(error instanceof Error ? error.message : "Failed to upload resume.", "error"); }
+    finally { setUploadingResume(false); }
   };
 
   const removeResume = async () => {
-    if (!isLoggedIn) {
-      setMessage("Please log in to manage your resume.");
-      return;
-    }
-    if (!resumeUrl) {
-      setMessage("No resume is currently saved.");
-      return;
-    }
-
-    setMessage(null);
-    setDeletingResume(true);
+    if (!isLoggedIn || !resumeUrl) return;
+    setMessage(null); setDeletingResume(true);
     try {
-      const response = await fetch(`${API_BASE}/user/profile/resume`, {
-        method: "DELETE",
-        headers: getAuthHeaders(headers),
-      });
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Resume removal failed: ${text}`);
-      }
-
+      const response = await fetch(`${API_BASE}/user/profile/resume`, { method: "DELETE", headers: getAuthHeaders(headers) });
+      if (!response.ok) throw new Error(`Resume removal failed: ${await response.text()}`);
       const data = (await response.json()) as StudentProfile;
       setResumeUrl(data.resume_url ?? null);
       setResumeViewUrl(data.resume_view_url ?? null);
       setResumeFilename(data.resume_filename ?? null);
       setResumeUploadedAt(data.resume_uploaded_at ?? null);
       setResumeFile(null);
-      setMessage("Resume removed. AI guidance will now use profile + entered context.");
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Failed to remove resume."
-      );
-    } finally {
-      setDeletingResume(false);
-    }
+      setMsg("Resume removed. AI guidance will now use profile + entered context.");
+    } catch (error) { setMsg(error instanceof Error ? error.message : "Failed to remove resume.", "error"); }
+    finally { setDeletingResume(false); }
   };
 
+  const isDisabled = !isLoggedIn || saving;
+
   return (
-    <section className="panel">
-      <h2 className="text-3xl font-semibold">My Profile</h2>
-      <p className="mt-2 text-[color:var(--muted)]">
-        Keep your academic context up to date so your guidance stays relevant.
-      </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Header */}
+      <div>
+        <h2 style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4 }}>My Profile</h2>
+        <p style={{ fontSize: "0.85rem", color: "var(--muted)" }}>Keep your academic context current so AI guidance stays relevant.</p>
+      </div>
+
       {!isLoggedIn && (
-        <p className="mt-4 text-sm text-[color:var(--accent-2)]">
+        <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: "0.82rem" }}>
           Please log in to edit your profile.
-        </p>
+        </div>
       )}
-      <div className="mt-6 grid gap-4">
-        <div className="rounded-xl border border-[color:var(--border)] p-5">
-          <h3 className="text-lg font-semibold">Academic Details</h3>
-          <div className="mt-4 grid gap-3">
-            <label className="text-sm text-[color:var(--muted)]">
-              Current Year
-              <input
-                className="mt-2 w-full rounded-lg border border-[color:var(--border)] p-3"
-                placeholder="e.g., Year 2 (Sophomore)"
-                value={semester}
-                onChange={(event) => setSemester(event.target.value)}
-                disabled={!isLoggedIn || saving}
-              />
-            </label>
-            <label className="text-sm text-[color:var(--muted)]">
-              State
-              <input
-                className="mt-2 w-full rounded-lg border border-[color:var(--border)] p-3"
-                placeholder="e.g., Virginia"
-                value={state}
-                onChange={(event) => setState(event.target.value)}
-                disabled={!isLoggedIn || saving}
-              />
-            </label>
-            <label className="text-sm text-[color:var(--muted)]">
-              University
-              <input
-                className="mt-2 w-full rounded-lg border border-[color:var(--border)] p-3"
-                placeholder="e.g., George Mason University"
-                value={university}
-                onChange={(event) => setUniversity(event.target.value)}
-                disabled={!isLoggedIn || saving}
-              />
-            </label>
-            <label className="text-sm text-[color:var(--muted)]">
-              GitHub Username
-              <input
-                className="mt-2 w-full rounded-lg border border-[color:var(--border)] p-3"
-                placeholder="e.g., octocat"
-                value={githubUsername}
-                onChange={(event) => setGithubUsername(event.target.value)}
-                disabled={!isLoggedIn || saving}
-              />
-            </label>
+
+      {/* Academic Details */}
+      <div style={{ background: "var(--surface)", borderRadius: 16, padding: 22, border: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#a78bfa" }}>school</span>
+          <h3 style={{ fontSize: "1rem", fontWeight: 700 }}>Academic Details</h3>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <InputField label="Current Year" value={semester} onChange={setSemester} placeholder="e.g., Year 2 (Sophomore)" disabled={isDisabled} />
+          <InputField label="State" value={state} onChange={setState} placeholder="e.g., Virginia" disabled={isDisabled} />
+          <InputField label="University" value={university} onChange={setUniversity} placeholder="e.g., George Mason University" disabled={isDisabled} />
+          <InputField label="GitHub Username" value={githubUsername} onChange={setGithubUsername} placeholder="e.g., octocat" disabled={isDisabled} />
+        </div>
+      </div>
+
+      {/* Masters Plans */}
+      <div style={{ background: "var(--surface)", borderRadius: 16, padding: 22, border: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#06b6d4" }}>psychology</span>
+          <h3 style={{ fontSize: "1rem", fontWeight: 700 }}>Masters Degree Plans</h3>
+        </div>
+        <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: 16 }}>
+          Tell us your intent so we can tailor recommendations.
+        </p>
+        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: isDisabled ? "not-allowed" : "pointer", marginBottom: 16 }}>
+          <div
+            onClick={() => !isDisabled && setMastersInterest(v => !v)}
+            style={{
+              width: 44, height: 24, borderRadius: 12, background: mastersInterest ? "linear-gradient(135deg,#7c3aed,#5b21b6)" : "var(--surface-3)",
+              position: "relative", cursor: isDisabled ? "not-allowed" : "pointer", transition: "background 0.2s", flexShrink: 0,
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div style={{
+              position: "absolute", top: 3, left: mastersInterest ? 23 : 3, width: 16, height: 16,
+              borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            }} />
           </div>
+          <span style={{ fontSize: "0.85rem", color: "var(--fg-2)" }}>I am approaching a Masters degree</span>
+        </label>
+        {mastersInterest && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <InputField label="Target Program" value={mastersTarget} onChange={setMastersTarget} placeholder="e.g., MS in Data Science" disabled={isDisabled} />
+            <InputField label="Timeline" value={mastersTimeline} onChange={setMastersTimeline} placeholder="e.g., Fall 2027" disabled={isDisabled} />
+            <InputField label="Status" value={mastersStatus} onChange={setMastersStatus} placeholder="e.g., Applying" disabled={isDisabled} />
+          </div>
+        )}
+      </div>
+
+      {/* Resume */}
+      <div style={{ background: "var(--surface)", borderRadius: 16, padding: 22, border: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "#f59e0b" }}>description</span>
+          <h3 style={{ fontSize: "1rem", fontWeight: 700 }}>Resume for AI Personalization</h3>
+        </div>
+        <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: 12 }}>
+          Upload your resume so AI can tailor recommendations to your actual experience.
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          {["Career AI: role targeting", "Interview AI: relevant prompts", "Resume AI: keyword alignment"].map(item => (
+            <span key={item} style={{ fontSize: "0.72rem", padding: "3px 10px", borderRadius: 99, background: "rgba(245,158,11,0.1)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)" }}>
+              {item}
+            </span>
+          ))}
         </div>
 
-        <div className="rounded-xl border border-[color:var(--border)] p-5">
-          <h3 className="text-lg font-semibold">Masters Degree Plans</h3>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">
-            If you are approaching a Masters degree, tell us your intent so we
-            can shape recommendations.
-          </p>
-          <div className="mt-4 grid gap-3">
-            <label className="flex items-center gap-2 text-sm text-[color:var(--muted)]">
-              <input
-                type="checkbox"
-                checked={mastersInterest}
-                onChange={(event) => setMastersInterest(event.target.checked)}
-                disabled={!isLoggedIn || saving}
-              />
-              I am approaching a Masters degree
-            </label>
-            <label className="text-sm text-[color:var(--muted)]">
-              Target Program
-              <input
-                className="mt-2 w-full rounded-lg border border-[color:var(--border)] p-3"
-                placeholder="e.g., MS in Data Science"
-                value={mastersTarget}
-                onChange={(event) => setMastersTarget(event.target.value)}
-                disabled={!isLoggedIn || saving || !mastersInterest}
-              />
-            </label>
-            <label className="text-sm text-[color:var(--muted)]">
-              Timeline
-              <input
-                className="mt-2 w-full rounded-lg border border-[color:var(--border)] p-3"
-                placeholder="e.g., Fall 2027 start"
-                value={mastersTimeline}
-                onChange={(event) => setMastersTimeline(event.target.value)}
-                disabled={!isLoggedIn || saving || !mastersInterest}
-              />
-            </label>
-            <label className="text-sm text-[color:var(--muted)]">
-              Status
-              <input
-                className="mt-2 w-full rounded-lg border border-[color:var(--border)] p-3"
-                placeholder="e.g., Considering / Applying / Accepted"
-                value={mastersStatus}
-                onChange={(event) => setMastersStatus(event.target.value)}
-                disabled={!isLoggedIn || saving || !mastersInterest}
-              />
-            </label>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-[color:var(--border)] p-5">
-          <h3 className="text-lg font-semibold">Resume for AI Personalization - Powered by OpenAI</h3>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">
-            Upload your resume so OpenAI can tailor recommendations to your actual experience.
-          </p>
-          <ul className="mt-3 list-disc pl-5 text-sm text-[color:var(--muted)]">
-            <li>Career AI: role targeting and next-step recommendations.</li>
-            <li>Interview AI: more relevant prompts and feedback.</li>
-            <li>Resume AI: stronger keyword and impact alignment.</li>
-          </ul>
-          <div className="mt-4 grid gap-3">
-            {resumeUrl && (
-              <div className="rounded-lg border border-dashed border-[color:var(--border)] p-3 text-sm text-[color:var(--muted)]">
-                <div>Current resume: {resumeFilename ?? "Uploaded resume"}</div>
+        {resumeUrl && (
+          <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <div>
+                <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#22c55e", marginBottom: 2 }}>
+                  {resumeFilename ?? "Uploaded resume"}
+                </p>
                 {resumeUploadedAt && (
-                  <div>Uploaded at: {new Date(resumeUploadedAt).toLocaleString()}</div>
+                  <p style={{ fontSize: "0.7rem", color: "var(--muted-2)" }}>
+                    Uploaded {new Date(resumeUploadedAt).toLocaleString()}
+                  </p>
                 )}
-                <a
-                  className="text-[color:var(--accent-2)] underline"
-                  href={
-                    (resumeViewUrl || resumeUrl).startsWith("http")
-                      ? resumeViewUrl || resumeUrl
-                      : `${API_BASE}${resumeViewUrl || resumeUrl}`
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  View resume file
-                </a>
               </div>
-            )}
-            <label
-              htmlFor="profile-resume-upload"
-              className="text-sm text-[color:var(--muted)]"
-            >
-              Resume file
-              <input
-                id="profile-resume-upload"
-                type="file"
-                accept=".pdf,.doc,.docx,.txt,.rtf"
-                className="mt-2 w-full rounded-lg border border-[color:var(--border)] p-3"
-                title="Upload resume file"
-                aria-label="Upload resume file"
-                onChange={(event) => setResumeFile(event.target.files?.[0] ?? null)}
-                disabled={!isLoggedIn || uploadingResume || deletingResume || saving}
-              />
-            </label>
+              <a
+                href={(resumeViewUrl || resumeUrl).startsWith("http") ? resumeViewUrl || resumeUrl : `${API_BASE}${resumeViewUrl || resumeUrl}`}
+                target="_blank" rel="noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.78rem", color: "#a78bfa", textDecoration: "none" }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
+                View
+              </a>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <label htmlFor="profile-resume-upload" style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}>
+            Resume File
+            <input
+              id="profile-resume-upload"
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.rtf"
+              title="Upload resume file"
+              aria-label="Upload resume file"
+              onChange={e => setResumeFile(e.target.files?.[0] ?? null)}
+              disabled={!isLoggedIn || uploadingResume || deletingResume || saving}
+              style={{ display: "block", marginTop: 6, fontSize: "0.82rem", color: "var(--muted)" }}
+            />
+          </label>
+          <div style={{ display: "flex", gap: 8 }}>
             <button
-              className="cta cta-secondary"
               onClick={uploadResume}
               disabled={!isLoggedIn || uploadingResume || deletingResume || saving}
+              style={{
+                flex: 1, padding: "10px", borderRadius: 10, border: "none",
+                background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff",
+                fontWeight: 700, fontSize: "0.82rem", cursor: "pointer",
+                opacity: uploadingResume ? 0.7 : 1,
+              }}
             >
-              {uploadingResume ? "Uploading resume..." : resumeUrl ? "Replace Resume" : "Upload Resume"}
+              {uploadingResume ? "Uploading..." : resumeUrl ? "Replace Resume" : "Upload Resume"}
             </button>
             {resumeUrl && (
               <button
-                className="cta cta-secondary"
                 onClick={removeResume}
                 disabled={!isLoggedIn || uploadingResume || deletingResume || saving}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)",
+                  background: "rgba(239,68,68,0.08)", color: "#ef4444", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer",
+                }}
               >
-                {deletingResume ? "Removing resume..." : "Remove Resume"}
+                {deletingResume ? "Removing..." : "Remove Resume"}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      {/* Save button */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14 }}>
         <button
-          className="cta"
           onClick={saveProfile}
-          disabled={!isLoggedIn || saving}
+          disabled={isDisabled}
+          style={{
+            display: "flex", alignItems: "center", gap: 7, padding: "12px 28px", borderRadius: 12,
+            border: "none", background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff",
+            fontWeight: 700, fontSize: "0.9rem", cursor: isDisabled ? "not-allowed" : "pointer",
+            boxShadow: "0 4px 20px rgba(124,58,237,0.3)", opacity: isDisabled ? 0.6 : 1,
+          }}
         >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>save</span>
           {saving ? "Saving..." : "Save Profile"}
         </button>
         {message && (
-          <span className="text-sm text-[color:var(--muted)]">{message}</span>
+          <span style={{
+            fontSize: "0.82rem", padding: "8px 14px", borderRadius: 10,
+            background: messageType === "success" ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
+            border: `1px solid ${messageType === "success" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
+            color: messageType === "success" ? "#22c55e" : "#ef4444",
+          }}>
+            {message}
+          </span>
         )}
       </div>
 
-      {/* Truth-Link: Share with Recruiters */}
       {isLoggedIn && <SharePanel />}
-    </section>
-  );
-}
-
-function SharePanel() {
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [slug, setSlug] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const generate = async () => {
-    setLoading(true);
-    try {
-      const data = await apiSend<{ share_url: string; share_slug: string }>("/profile/generate-share-link", { method: "POST" });
-      setShareUrl(data.share_url);
-      setSlug(data.share_slug);
-    } catch {}
-    setLoading(false);
-  };
-
-  const copyLink = async () => {
-    if (!shareUrl) return;
-    await navigator.clipboard.writeText(shareUrl).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="mt-6 rounded-xl border border-[color:var(--border)] p-5" data-testid="share-panel">
-      <h3 className="text-lg font-semibold mb-2">Share with Recruiters</h3>
-      <p className="text-sm text-[color:var(--muted)] mb-4">
-        Generate a public, verified profile link to share with recruiters — no signup required for them.
-      </p>
-      {!shareUrl ? (
-        <button className="cta cta-primary" onClick={generate} disabled={loading} data-testid="generate-share-link-btn">
-          {loading ? "Generating..." : "Generate Share Link"}
-        </button>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <input
-              readOnly
-              value={shareUrl}
-              className="flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--input-bg)] px-3 py-2 text-sm font-mono"
-              data-testid="share-link-input"
-            />
-            <button className="cta cta-secondary text-sm px-4" onClick={copyLink} data-testid="copy-link-btn">
-              {copied ? "Copied!" : "Copy"}
-            </button>
-          </div>
-          {QRCodeSVG && (
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-xs text-[color:var(--muted)]">QR Code for recruiters</p>
-              <div className="p-3 rounded-xl bg-white" data-testid="qr-code">
-                <QRCodeSVG value={shareUrl} size={140} />
-              </div>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="cta cta-secondary text-sm" data-testid="view-public-profile-btn">
-              Preview Profile
-            </a>
-            <button className="cta cta-secondary text-sm" onClick={generate} data-testid="regenerate-link-btn">
-              Regenerate
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

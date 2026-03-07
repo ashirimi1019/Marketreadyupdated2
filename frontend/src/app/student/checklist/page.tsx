@@ -7,28 +7,22 @@ import { useSession } from "@/lib/session";
 import type { ChecklistItem, Proof, StorageMeta, Readiness, EvidenceMapResponse } from "@/types/api";
 
 const PROFICIENCY_LEVELS = [
-  { value: "beginner", label: "Beginner", desc: "Learning the basics", color: "#ffb300", weight: "50% credit" },
-  { value: "intermediate", label: "Intermediate", desc: "Working knowledge", color: "#3d6dff", weight: "75% credit" },
-  { value: "professional", label: "Professional", desc: "Production-ready", color: "#00c896", weight: "100% credit" },
+  { value: "beginner", label: "Beginner", desc: "Learning the basics", color: "#f59e0b", weight: "50%" },
+  { value: "intermediate", label: "Intermediate", desc: "Working knowledge", color: "#06b6d4", weight: "75%" },
+  { value: "professional", label: "Professional", desc: "Production-ready", color: "#22c55e", weight: "100%" },
 ] as const;
 
 type ProficiencyValue = "beginner" | "intermediate" | "professional";
 
-function ProficiencySelector({
-  value,
-  onChange,
-  disabled,
-  itemId,
-}: {
-  value: ProficiencyValue;
-  onChange: (v: ProficiencyValue) => void;
-  disabled: boolean;
-  itemId: string;
+function ProficiencySelector({ value, onChange, disabled, itemId }: {
+  value: ProficiencyValue; onChange: (v: ProficiencyValue) => void; disabled: boolean; itemId: string;
 }) {
   return (
-    <div className="space-y-2">
-      <p className="text-sm text-[color:var(--muted)]">My proficiency level</p>
-      <div className="grid grid-cols-3 gap-2">
+    <div>
+      <p style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 8 }}>
+        Proficiency Level
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
         {PROFICIENCY_LEVELS.map(lvl => (
           <button
             key={lvl.value}
@@ -36,17 +30,19 @@ function ProficiencySelector({
             disabled={disabled}
             onClick={() => onChange(lvl.value)}
             data-testid={`proficiency-${lvl.value}-${itemId}`}
-            className="relative flex flex-col items-center rounded-xl border p-3 text-center transition-all"
             style={{
-              borderColor: value === lvl.value ? lvl.color : "var(--border)",
-              background: value === lvl.value ? `${lvl.color}12` : "transparent",
+              border: `1px solid ${value === lvl.value ? lvl.color : "var(--border)"}`,
+              background: value === lvl.value ? `${lvl.color}18` : "transparent",
+              borderRadius: 10, padding: "8px 4px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
               cursor: disabled ? "not-allowed" : "pointer",
+              transition: "all 0.15s",
             }}
           >
-            <span className="text-sm font-semibold" style={{ color: value === lvl.value ? lvl.color : "var(--muted)" }}>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: value === lvl.value ? lvl.color : "var(--muted)" }}>
               {lvl.label}
             </span>
-            <span className="text-[10px] mt-0.5" style={{ color: "var(--muted)" }}>{lvl.weight}</span>
+            <span style={{ fontSize: "0.62rem", color: "var(--muted-2)" }}>{lvl.weight}</span>
           </button>
         ))}
       </div>
@@ -56,39 +52,22 @@ function ProficiencySelector({
 
 function VerificationBadge({ status, reviewNote }: { status: string; reviewNote?: string | null }) {
   if (status === "verified") return (
-    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold"
-      style={{ background: "rgba(0,200,150,0.12)", color: "#00c896" }}
-      data-testid="verification-badge-verified">
-      <span>✓</span> AI Verified
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.72rem", padding: "3px 10px", borderRadius: 9999, background: "rgba(34,197,94,0.12)", color: "#22c55e", fontWeight: 700 }} data-testid="verification-badge-verified">
+      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>verified</span> AI Verified
     </span>
   );
   if (status === "rejected") return (
-    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold"
-      style={{ background: "rgba(255,59,48,0.12)", color: "#ff3b30" }}
-      title={reviewNote || ""}
-      data-testid="verification-badge-rejected">
-      ✗ Not Verified
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.72rem", padding: "3px 10px", borderRadius: 9999, background: "rgba(239,68,68,0.12)", color: "#ef4444", fontWeight: 700 }} title={reviewNote || ""} data-testid="verification-badge-rejected">
+      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>cancel</span> Not Verified
     </span>
   );
   if (status === "submitted" || status === "needs_more_evidence") return (
-    <span className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full font-semibold"
-      style={{ background: "rgba(255,179,0,0.12)", color: "#ffb300" }}
-      data-testid="verification-badge-pending">
-      <span className="h-2 w-2 rounded-full bg-[#ffb300] animate-pulse" />
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.72rem", padding: "3px 10px", borderRadius: 9999, background: "rgba(245,158,11,0.12)", color: "#f59e0b", fontWeight: 700 }} data-testid="verification-badge-pending">
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", animation: "pulse 1.5s infinite" }} />
       AI Reviewing...
     </span>
   );
   return null;
-}
-
-function ProficiencyBadge({ level }: { level: string }) {
-  const lvl = PROFICIENCY_LEVELS.find(l => l.value === level) || PROFICIENCY_LEVELS[1];
-  return (
-    <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-      style={{ background: `${lvl.color}18`, color: lvl.color }}>
-      {lvl.label}
-    </span>
-  );
 }
 
 function ChecklistPageContent() {
@@ -107,6 +86,7 @@ function ChecklistPageContent() {
   const [reevaluation, setReevaluation] = useState<Readiness | null>(null);
   const [mappingEvidence, setMappingEvidence] = useState(false);
   const [mappingMessage, setMappingMessage] = useState<string | null>(null);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const headers = useMemo(() => ({ "X-User-Id": username }), [username]);
 
@@ -117,43 +97,31 @@ function ChecklistPageContent() {
 
   const getStatusLabel = (proofs: Proof[], fallback?: string) => {
     if (!proofs.length) return "incomplete";
-    const verifiedProofs = proofs.filter((proof) => proof.status === "verified");
+    const verifiedProofs = proofs.filter(p => p.status === "verified");
     if (verifiedProofs.length) {
-      const hasOnlyResumeMatches = verifiedProofs.every(
-        (proof) => proof.proof_type === "resume_upload_match"
-      );
+      const hasOnlyResumeMatches = verifiedProofs.every(p => p.proof_type === "resume_upload_match");
       return hasOnlyResumeMatches ? "satisfied by resume upload" : "complete";
     }
-    if (proofs.some((proof) => proof.status === "submitted")) return "AI reviewing...";
-    if (proofs.some((proof) => proof.status === "needs_more_evidence")) return "needs more evidence";
-    if (proofs.some((proof) => proof.status === "rejected")) return "rejected";
+    if (proofs.some(p => p.status === "submitted")) return "AI reviewing...";
+    if (proofs.some(p => p.status === "needs_more_evidence")) return "needs more evidence";
+    if (proofs.some(p => p.status === "rejected")) return "rejected";
     return fallback || "submitted";
   };
 
-  const prettyProofType = (proofTypeValue: string) => {
-    if (proofTypeValue === "resume_upload_match") return "resume upload match";
-    return proofTypeValue.replace(/_/g, " ");
-  };
+  const prettyProofType = (t: string) => t === "resume_upload_match" ? "resume upload match" : t.replace(/_/g, " ");
 
   const loadProofs = () => {
     if (!isLoggedIn) return;
-    apiGet<Proof[]>("/user/proofs", headers)
-      .then((proofs) => {
-        const grouped: Record<string, Proof[]> = {};
-        proofs.forEach((proof) => {
-          if (!grouped[proof.checklist_item_id]) grouped[proof.checklist_item_id] = [];
-          grouped[proof.checklist_item_id].push(proof);
-        });
-        setProofsByItem(grouped);
-      })
-      .catch(() => setProofsByItem({}));
+    apiGet<Proof[]>("/user/proofs", headers).then(proofs => {
+      const grouped: Record<string, Proof[]> = {};
+      proofs.forEach(p => { if (!grouped[p.checklist_item_id]) grouped[p.checklist_item_id] = []; grouped[p.checklist_item_id].push(p); });
+      setProofsByItem(grouped);
+    }).catch(() => setProofsByItem({}));
   };
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    apiGet<ChecklistItem[]>("/user/checklist", headers)
-      .then(setItems)
-      .catch(() => setError("Unable to load checklist."));
+    apiGet<ChecklistItem[]>("/user/checklist", headers).then(setItems).catch(() => setError("Unable to load checklist."));
   }, [headers, isLoggedIn]);
 
   useEffect(() => {
@@ -165,9 +133,7 @@ function ChecklistPageContent() {
   useEffect(() => { loadProofs(); }, [headers, isLoggedIn]);
 
   useEffect(() => {
-    apiGet<StorageMeta>("/meta/storage")
-      .then(setStorageMeta)
-      .catch(() => setStorageMeta({ s3_enabled: false, local_enabled: true }));
+    apiGet<StorageMeta>("/meta/storage").then(setStorageMeta).catch(() => setStorageMeta({ s3_enabled: false, local_enabled: true }));
   }, []);
 
   const submitProof = async (item: ChecklistItem, options: { selfAttested?: boolean } = {}) => {
@@ -182,27 +148,21 @@ function ChecklistPageContent() {
     if (requiresDocumentUpload && !file) { setMessage("Certificate proof requires document upload."); return; }
     if (!requiresDocumentUpload && !options.selfAttested) { setMessage("Use the proficiency button to mark this item."); return; }
 
-    setSaving(item.id);
-    setMessage(null);
+    setSaving(item.id); setMessage(null);
     try {
       let fileUrl = "";
       if (requiresDocumentUpload && file) {
         const s3Enabled = storageMeta?.s3_enabled ?? false;
         if (s3Enabled) {
-          const { upload_url, s3_key } = await apiSend<{ upload_url: string; s3_key: string }>(
-            "/user/proofs/presign",
-            { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: file.name, content_type: file.type }) }
-          );
+          const { upload_url, s3_key } = await apiSend<{ upload_url: string; s3_key: string }>("/user/proofs/presign", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: file.name, content_type: file.type }),
+          });
           await fetch(upload_url, { method: "PUT", body: file });
           fileUrl = s3_key;
         } else {
           const fd = new FormData();
           fd.append("file", file);
-          const uploadRes = await fetch(`${API_BASE}/user/proofs/upload`, {
-            method: "POST",
-            headers: getAuthHeaders(headers),
-            body: fd,
-          });
+          const uploadRes = await fetch(`${API_BASE}/user/proofs/upload`, { method: "POST", headers: getAuthHeaders(headers), body: fd });
           if (!uploadRes.ok) throw new Error("File upload failed");
           const { file_url } = await uploadRes.json();
           fileUrl = file_url;
@@ -221,48 +181,56 @@ function ChecklistPageContent() {
         }),
       });
 
-      const isCert = requiresDocumentUpload;
-      if (isCert && proof.status === "verified") {
+      if (requiresDocumentUpload && proof.status === "verified") {
         setMessage(`Certificate AI-verified! Proficiency: ${selectedProficiency}. MRI score updated.`);
-      } else if (isCert) {
-        setMessage(`Certificate submitted for AI verification. Status: ${proof.status}. Check back soon.`);
+      } else if (requiresDocumentUpload) {
+        setMessage(`Certificate submitted for AI verification. Status: ${proof.status}.`);
       } else {
         setMessage(`Proficiency set to ${selectedProficiency}. MRI score updated.`);
       }
 
       loadProofs();
-      // Re-evaluate readiness
       apiGet<Readiness>("/user/readiness", headers).then(setReevaluation).catch(() => {});
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Submission failed. Please try again.");
-    } finally {
-      setSaving(null);
-    }
+    } finally { setSaving(null); }
   };
 
   const runEvidenceMapper = async () => {
     if (!isLoggedIn) return;
-    setMappingEvidence(true);
-    setMappingMessage(null);
+    setMappingEvidence(true); setMappingMessage(null);
     try {
       const result = await apiSend<EvidenceMapResponse>("/user/ai/evidence-map", {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({}),
       });
       const mapped = result?.matched_count ?? 0;
-      setMappingMessage(mapped > 0 ? `OpenAI Evidence Mapper applied: ${mapped} requirement(s) auto-satisfied from your evidence context.` : "No new requirements could be auto-satisfied. Keep adding evidence.");
+      setMappingMessage(mapped > 0 ? `AI Mapper applied: ${mapped} requirement(s) auto-satisfied.` : "No new requirements could be auto-satisfied.");
       loadProofs();
     } catch (err) {
-      setMappingMessage(err instanceof Error ? err.message : "Failed to run OpenAI evidence mapper.");
-    } finally {
-      setMappingEvidence(false);
-    }
+      setMappingMessage(err instanceof Error ? err.message : "Failed to run evidence mapper.");
+    } finally { setMappingEvidence(false); }
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
   const nonNegotiables = items.filter(i => i.tier === "non_negotiable");
   const strongSignals = items.filter(i => i.tier === "strong_signal");
   const others = items.filter(i => i.tier !== "non_negotiable" && i.tier !== "strong_signal");
+
+  const statusConfig: Record<string, { color: string; bg: string; icon: string }> = {
+    complete: { color: "#22c55e", bg: "rgba(34,197,94,0.1)", icon: "check_circle" },
+    "AI reviewing...": { color: "#f59e0b", bg: "rgba(245,158,11,0.1)", icon: "pending" },
+    "needs more evidence": { color: "#f97316", bg: "rgba(249,115,22,0.1)", icon: "warning" },
+    rejected: { color: "#ef4444", bg: "rgba(239,68,68,0.1)", icon: "cancel" },
+    "satisfied by resume upload": { color: "#06b6d4", bg: "rgba(6,182,212,0.1)", icon: "description" },
+    incomplete: { color: "var(--muted)", bg: "transparent", icon: "radio_button_unchecked" },
+  };
 
   const renderItem = (item: ChecklistItem) => {
     const allowedProofTypes = item.allowed_proof_types ?? [];
@@ -273,223 +241,298 @@ function ChecklistPageContent() {
     const bestProof = itemProofs.find(p => p.status === "verified") || itemProofs[0];
     const selectedProficiency: ProficiencyValue = proficiency[item.id] || "intermediate";
     const isNonNeg = item.tier === "non_negotiable";
-
-    const statusColors: Record<string, string> = {
-      complete: "#00c896",
-      "AI reviewing...": "#ffb300",
-      "needs more evidence": "#ff7b1a",
-      rejected: "#ff3b30",
-      "satisfied by resume upload": "#3d6dff",
-      incomplete: "var(--muted)",
-    };
+    const cfg = statusConfig[displayStatus] || statusConfig.incomplete;
+    const isExpanded = expandedItems.has(item.id);
+    const isDone = displayStatus === "complete" || displayStatus === "satisfied by resume upload";
 
     return (
       <div
         key={item.id}
         id={`checklist-${item.id}`}
-        className="rounded-2xl border p-5 transition-all"
-        style={{
-          borderColor: focusItemId === item.id ? "var(--primary)" : displayStatus === "complete" ? "rgba(0,200,150,0.2)" : "var(--border)",
-          background: displayStatus === "complete" ? "rgba(0,200,150,0.03)" : "transparent",
-          boxShadow: focusItemId === item.id ? "0 0 20px rgba(61,109,255,0.2)" : undefined,
-        }}
         data-testid={`checklist-item-${item.id}`}
+        style={{
+          borderRadius: 16,
+          border: `1px solid ${focusItemId === item.id ? "var(--primary)" : isDone ? "rgba(34,197,94,0.2)" : "var(--border)"}`,
+          background: isDone ? "rgba(34,197,94,0.03)" : "var(--surface)",
+          overflow: "hidden",
+          transition: "all 0.2s",
+          boxShadow: focusItemId === item.id ? "0 0 20px rgba(124,58,237,0.2)" : "none",
+        }}
       >
-        <div className="flex flex-col md:flex-row md:items-start gap-5">
-          {/* Left: item info */}
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{ background: `${statusColors[displayStatus] || "var(--muted)"}18`, color: statusColors[displayStatus] || "var(--muted)" }}>
+        {/* Header row */}
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }}
+          onClick={() => toggleExpand(item.id)}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 20, color: cfg.color, flexShrink: 0 }}>{cfg.icon}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 3 }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--fg)" }}>{item.title}</span>
+              {isNonNeg && (
+                <span style={{ fontSize: "0.65rem", padding: "2px 8px", borderRadius: 9999, border: "1px solid rgba(239,68,68,0.4)", color: "#ef4444", fontWeight: 700 }}>Required</span>
+              )}
+              {bestProof && (
+                <VerificationBadge status={bestProof.status} reviewNote={bestProof.review_note} />
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: "0.7rem", padding: "2px 8px", borderRadius: 9999, background: cfg.bg, color: cfg.color, fontWeight: 600 }}>
                 {displayStatus}
               </span>
-              {isNonNeg && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full border border-[rgba(255,59,48,0.3)] text-[color:var(--danger)]">
-                  Required
-                </span>
-              )}
-              <span className="text-[10px] text-[color:var(--muted)] px-2 py-0.5 rounded-full border border-[color:var(--border)]">
+              <span style={{ fontSize: "0.7rem", color: "var(--muted-2)", padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 9999 }}>
                 {(item.tier ?? "core").replace("_", " ")}
               </span>
-              {bestProof && <ProficiencyBadge level={bestProof.proficiency_level || "intermediate"} />}
             </div>
-            <p className="text-base font-semibold">{item.title}</p>
+          </div>
+          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--muted)", transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "none" }}>
+            expand_more
+          </span>
+        </div>
 
-            {/* Existing proof info */}
-            {bestProof && (
-              <div className="mt-2 space-y-1">
-                <VerificationBadge status={bestProof.status} reviewNote={bestProof.review_note} />
-                {bestProof.review_note && bestProof.status !== "verified" && (
-                  <p className="text-xs text-[color:var(--muted)]">{bestProof.review_note}</p>
+        {/* Expanded controls */}
+        {isExpanded && (
+          <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "start" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <ProficiencySelector
+                  value={selectedProficiency}
+                  onChange={v => setProficiency(prev => ({ ...prev, [item.id]: v }))}
+                  disabled={!isLoggedIn || saving === item.id}
+                  itemId={item.id}
+                />
+
+                {allowedProofTypes.length > 1 && (
+                  <div>
+                    <p style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 6 }}>Proof Type</p>
+                    <select
+                      value={selectedType}
+                      title={`Proof type for ${item.title}`}
+                      aria-label={`Proof type for ${item.title}`}
+                      onChange={e => {
+                        setProofType(prev => ({ ...prev, [item.id]: e.target.value }));
+                        if (!isCertificateProofType(e.target.value)) setProofFile(prev => ({ ...prev, [item.id]: null }));
+                      }}
+                      disabled={!isLoggedIn}
+                      data-testid={`proof-type-select-${item.id}`}
+                      style={{
+                        width: "100%", padding: "9px 12px", borderRadius: 10, fontSize: "0.82rem",
+                        background: "var(--surface-2)", border: "1px solid var(--border)", color: "var(--fg)",
+                      }}
+                    >
+                      {allowedProofTypes.map(type => <option key={type} value={type}>{prettyProofType(type)}</option>)}
+                    </select>
+                  </div>
                 )}
-                {bestProof.url && !bestProof.url.startsWith("self_attested") && (
-                  <a
-                    className="text-xs text-[color:var(--primary)] underline"
-                    href={(bestProof.view_url || bestProof.url).startsWith("http") ? bestProof.view_url || bestProof.url : `${API_BASE}${bestProof.view_url || bestProof.url}`}
+
+                {bestProof?.review_note && bestProof.status !== "verified" && (
+                  <p style={{ fontSize: "0.78rem", color: "var(--muted)", padding: "8px 12px", background: "rgba(239,68,68,0.06)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.15)" }}>
+                    {bestProof.review_note}
+                  </p>
+                )}
+                {bestProof?.url && !bestProof.url.startsWith("self_attested") && (
+                  <a href={(bestProof.view_url || bestProof.url).startsWith("http") ? bestProof.view_url || bestProof.url : `${API_BASE}${bestProof.view_url || bestProof.url}`}
                     target="_blank" rel="noreferrer"
-                  >
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.78rem", color: "var(--primary-light)", textDecoration: "none" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
                     View certificate
                   </a>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* Right: submission controls */}
-          <div className="flex flex-col gap-3 md:w-72">
-            <ProficiencySelector
-              value={selectedProficiency}
-              onChange={v => setProficiency(prev => ({ ...prev, [item.id]: v }))}
-              disabled={!isLoggedIn || saving === item.id}
-              itemId={item.id}
-            />
-
-            {allowedProofTypes.length > 1 && (
-              <select
-                className="rounded-lg border border-[color:var(--border)] bg-[color:var(--input-bg)] px-3 py-2 text-sm"
-                value={selectedType}
-                title={`Proof type for ${item.title}`}
-                aria-label={`Proof type for ${item.title}`}
-                onChange={e => {
-                  setProofType(prev => ({ ...prev, [item.id]: e.target.value }));
-                  if (!isCertificateProofType(e.target.value)) setProofFile(prev => ({ ...prev, [item.id]: null }));
-                }}
-                disabled={!isLoggedIn}
-                data-testid={`proof-type-select-${item.id}`}
-              >
-                {allowedProofTypes.map(type => (
-                  <option key={type} value={type}>{prettyProofType(type)}</option>
-                ))}
-              </select>
-            )}
-
-            {requiresDocumentUpload ? (
-              <div className="space-y-2">
-                {isNonNeg && (
-                  <div className="text-xs rounded-lg p-2 border border-[rgba(61,109,255,0.2)] bg-[rgba(61,109,255,0.05)]">
-                    <span className="font-semibold text-[color:var(--primary)]">Required: </span>
-                    <span className="text-[color:var(--muted)]">AI will verify this certificate automatically</span>
-                  </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 160 }}>
+                {requiresDocumentUpload ? (
+                  <>
+                    {isNonNeg && (
+                      <div style={{ fontSize: "0.72rem", padding: "8px 10px", background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, color: "var(--primary-light)" }}>
+                        AI will verify this certificate automatically
+                      </div>
+                    )}
+                    <label style={{ fontSize: "0.72rem", color: "var(--muted)", cursor: "pointer" }}>
+                      Upload certificate
+                      <input
+                        id={`certificate-upload-${item.id}`}
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        title={`Upload certificate for ${item.title}`}
+                        aria-label={`Upload certificate for ${item.title}`}
+                        onChange={e => setProofFile(prev => ({ ...prev, [item.id]: e.target.files?.[0] ?? null }))}
+                        disabled={!isLoggedIn}
+                        data-testid={`cert-upload-${item.id}`}
+                        style={{ display: "block", marginTop: 6, fontSize: "0.78rem", color: "var(--muted)", width: "100%" }}
+                      />
+                    </label>
+                    <button
+                      onClick={() => submitProof(item)}
+                      disabled={!isLoggedIn || saving === item.id}
+                      data-testid={`submit-cert-btn-${item.id}`}
+                      style={{
+                        padding: "10px 16px", borderRadius: 10, border: "none", fontWeight: 700, fontSize: "0.8rem",
+                        background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff",
+                        cursor: saving === item.id ? "wait" : "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      }}
+                    >
+                      {saving === item.id ? (
+                        <><span className="material-symbols-outlined animate-spin" style={{ fontSize: 15 }}>refresh</span>Verifying...</>
+                      ) : (
+                        <><span className="material-symbols-outlined" style={{ fontSize: 15 }}>verified_user</span>Submit & AI Verify</>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => submitProof(item, { selfAttested: true })}
+                    disabled={!isLoggedIn || saving === item.id}
+                    data-testid={`mark-proficient-btn-${item.id}`}
+                    style={{
+                      padding: "10px 16px", borderRadius: 10, border: "none", fontWeight: 700, fontSize: "0.8rem",
+                      background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff",
+                      cursor: saving === item.id ? "wait" : "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    }}
+                  >
+                    {saving === item.id ? "Saving..." : `Mark as ${PROFICIENCY_LEVELS.find(l => l.value === selectedProficiency)?.label}`}
+                  </button>
                 )}
-                <label className="text-xs text-[color:var(--muted)]">
-                  Upload certificate
-                  <input
-                    id={`certificate-upload-${item.id}`}
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.webp"
-                    className="mt-1 w-full rounded-lg border border-[color:var(--border)] p-2 text-sm"
-                    title={`Upload certificate for ${item.title}`}
-                    aria-label={`Upload certificate for ${item.title}`}
-                    onChange={e => setProofFile(prev => ({ ...prev, [item.id]: e.target.files?.[0] ?? null }))}
-                    disabled={!isLoggedIn}
-                    data-testid={`cert-upload-${item.id}`}
-                  />
-                </label>
-                <button
-                  className="cta cta-primary w-full text-sm"
-                  onClick={() => submitProof(item)}
-                  disabled={!isLoggedIn || saving === item.id}
-                  data-testid={`submit-cert-btn-${item.id}`}
-                >
-                  {saving === item.id ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span className="h-3 w-3 rounded-full border border-white border-t-transparent animate-spin" />
-                      AI Verifying...
-                    </span>
-                  ) : "Submit & AI Verify"}
-                </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-2">
-                <button
-                  className="cta cta-primary text-sm"
-                  onClick={() => submitProof(item, { selfAttested: true })}
-                  disabled={!isLoggedIn || saving === item.id}
-                  data-testid={`mark-proficient-btn-${item.id}`}
-                >
-                  {saving === item.id ? "Saving..." : `Mark as ${PROFICIENCY_LEVELS.find(l => l.value === selectedProficiency)?.label}`}
-                </button>
-              </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   };
 
   const sectionGroups = [
-    { label: "Required (Non-Negotiable)", items: nonNegotiables, color: "#ff3b30" },
-    { label: "Strong Signals", items: strongSignals, color: "#ffb300" },
-    { label: "Core Skills", items: others, color: "var(--muted)" },
+    { label: "Required", sublabel: "Non-Negotiable", items: nonNegotiables, color: "#ef4444", icon: "lock" },
+    { label: "Strong Signals", sublabel: "Competitive edge", items: strongSignals, color: "#f59e0b", icon: "star" },
+    { label: "Core Skills", sublabel: "All other skills", items: others, color: "var(--muted)", icon: "checklist" },
   ].filter(g => g.items.length > 0);
 
+  const total = items.length;
+  const completed = items.filter(i => {
+    const proofs = proofsByItem[i.id] ?? [];
+    const status = getStatusLabel(proofs);
+    return status === "complete" || status === "satisfied by resume upload";
+  }).length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
   return (
-    <section className="panel space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Skills Checklist</h2>
-        <p className="mt-1 text-[color:var(--muted)] text-sm">
-          Set your proficiency level for each skill. Non-negotiable certificates are AI-verified for authenticity.
-        </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Header */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <h2 style={{ fontSize: "1.75rem", fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 4 }}>Skills Checklist</h2>
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)" }}>Set proficiency levels. AI-verifies certificates on required items.</p>
+        </div>
+        <button
+          onClick={runEvidenceMapper}
+          disabled={!isLoggedIn || mappingEvidence}
+          data-testid="evidence-mapper-btn"
+          style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12,
+            background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.3)",
+            color: "#a78bfa", fontWeight: 700, fontSize: "0.82rem", cursor: mappingEvidence ? "wait" : "pointer",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>auto_awesome</span>
+          {mappingEvidence ? "Mapping..." : "AI Evidence Mapper"}
+        </button>
       </div>
 
-      {/* Proficiency legend */}
-      <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
-        <p className="text-xs font-semibold text-[color:var(--muted)] mb-3 uppercase tracking-wider">How Proficiency Affects Your MRI Score</p>
-        <div className="grid grid-cols-3 gap-3">
-          {PROFICIENCY_LEVELS.map(lvl => (
-            <div key={lvl.value} className="text-center p-2 rounded-xl border border-[color:var(--border)]">
-              <p className="font-semibold text-sm" style={{ color: lvl.color }}>{lvl.label}</p>
-              <p className="text-xs text-[color:var(--muted)] mt-0.5">{lvl.weight}</p>
-              <p className="text-[10px] text-[color:var(--muted)] mt-0.5">{lvl.desc}</p>
+      {/* Progress bar */}
+      <div style={{ background: "var(--surface)", borderRadius: 16, padding: 20, border: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--muted)" }}>Overall Progress</span>
+          <span style={{ fontSize: "1.1rem", fontWeight: 800, color: pct >= 85 ? "#22c55e" : pct >= 65 ? "#a78bfa" : "var(--fg)" }}>{pct}%</span>
+        </div>
+        <div style={{ height: 8, borderRadius: 99, background: "var(--surface-2)", overflow: "hidden" }}>
+          <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: "linear-gradient(90deg,#7c3aed,#06b6d4)", transition: "width 0.5s ease" }} />
+        </div>
+        <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
+          {[
+            { label: "Required", count: nonNegotiables.length, color: "#ef4444" },
+            { label: "Strong Signals", count: strongSignals.length, color: "#f59e0b" },
+            { label: "Core Skills", count: others.length, color: "var(--muted)" },
+          ].map(s => (
+            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color }} />
+              <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{s.count} {s.label}</span>
             </div>
           ))}
         </div>
-        <p className="text-xs text-[color:var(--muted)] mt-3">
-          AI-verified certificates on Required items get an additional <span className="text-[color:var(--success)] font-semibold">15% bonus</span>.
+      </div>
+
+      {/* Proficiency legend */}
+      <div style={{ background: "var(--surface)", borderRadius: 16, padding: 18, border: "1px solid var(--border)" }}>
+        <p style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 12 }}>How Proficiency Affects Your MRI Score</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+          {PROFICIENCY_LEVELS.map(lvl => (
+            <div key={lvl.value} style={{ textAlign: "center", padding: "10px 8px", borderRadius: 10, border: `1px solid ${lvl.color}28` }}>
+              <p style={{ fontWeight: 700, fontSize: "0.82rem", color: lvl.color }}>{lvl.label}</p>
+              <p style={{ fontSize: "1rem", fontWeight: 800, color: lvl.color }}>{lvl.weight}</p>
+              <p style={{ fontSize: "0.68rem", color: "var(--muted)", marginTop: 2 }}>{lvl.desc}</p>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: 10 }}>
+          AI-verified certs on required items earn an extra <span style={{ color: "#22c55e", fontWeight: 700 }}>+15% bonus</span>.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="cta cta-secondary text-sm" onClick={runEvidenceMapper} disabled={!isLoggedIn || mappingEvidence} data-testid="evidence-mapper-btn">
-          {mappingEvidence ? "Mapping Evidence..." : "Run OpenAI Evidence Mapper"}
-        </button>
-        {mappingMessage && <span className="text-sm text-[color:var(--muted)]">{mappingMessage}</span>}
-      </div>
-
-      {!isLoggedIn && <p className="text-sm text-[color:var(--accent-2)]">Please log in to view your checklist.</p>}
-      {message && <p className="text-sm text-[color:var(--success)] rounded-xl border border-[rgba(0,200,150,0.2)] bg-[rgba(0,200,150,0.06)] px-4 py-2" data-testid="checklist-message">{message}</p>}
-      {error && <p className="text-sm text-[color:var(--danger)]">{error}</p>}
+      {/* Messages */}
+      {mappingMessage && (
+        <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", color: "var(--primary-light)", fontSize: "0.82rem" }}>
+          {mappingMessage}
+        </div>
+      )}
+      {!isLoggedIn && (
+        <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: "0.82rem" }}>
+          Please log in to view your checklist.
+        </div>
+      )}
+      {message && (
+        <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e", fontSize: "0.82rem" }} data-testid="checklist-message">
+          {message}
+        </div>
+      )}
+      {error && <p style={{ color: "#ef4444", fontSize: "0.82rem" }}>{error}</p>}
 
       {reevaluation && (
-        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4 text-sm">
-          <div className="font-semibold">MRI recalculated: {reevaluation.score.toFixed(0)}/100 ({reevaluation.band})</div>
+        <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.25)", fontSize: "0.85rem" }}>
+          <span style={{ fontWeight: 700, color: "var(--primary-light)" }}>MRI Recalculated: {reevaluation.score.toFixed(0)}/100</span>
+          {" · "}
+          <span style={{ color: "var(--muted)" }}>{reevaluation.band}</span>
           {reevaluation.next_actions?.length ? (
-            <div className="mt-1 text-[color:var(--muted)]">Next: {reevaluation.next_actions.slice(0, 2).join(" • ")}</div>
+            <div style={{ marginTop: 4, color: "var(--muted)", fontSize: "0.78rem" }}>Next: {reevaluation.next_actions.slice(0, 2).join(" · ")}</div>
           ) : null}
         </div>
       )}
 
+      {/* Sections */}
       {sectionGroups.map(group => (
-        <div key={group.label} className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full" style={{ background: group.color }} />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[color:var(--muted)]">{group.label}</h3>
-            <span className="text-xs text-[color:var(--muted)]">({group.items.length})</span>
+        <div key={group.label} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 16, color: group.color }}>{group.icon}</span>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: group.color }}>{group.label}</span>
+            <span style={{ fontSize: "0.72rem", color: "var(--muted-2)" }}>— {group.sublabel}</span>
+            <span style={{ marginLeft: "auto", fontSize: "0.72rem", color: "var(--muted-2)", background: "var(--surface-2)", padding: "2px 8px", borderRadius: 99 }}>
+              {group.items.length} items
+            </span>
           </div>
           {group.items.map(renderItem)}
         </div>
       ))}
-    </section>
+    </div>
   );
 }
 
 export default function StudentChecklistPage() {
   return (
     <Suspense fallback={
-      <section className="panel">
-        <h2 className="text-3xl font-bold">Skills Checklist</h2>
-        <p className="mt-2 text-[color:var(--muted)]">Loading...</p>
-      </section>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ height: 40, borderRadius: 12, background: "var(--surface)", animation: "shimmer 1.5s infinite" }} />
+        <div style={{ height: 120, borderRadius: 16, background: "var(--surface)", animation: "shimmer 1.5s infinite" }} />
+      </div>
     }>
       <ChecklistPageContent />
     </Suspense>
