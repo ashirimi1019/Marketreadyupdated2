@@ -4,30 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "@/lib/session";
 
-/* ── Animated counter ───────────────────────────────────────── */
-function Counter({ to, suffix = "", prefix = "" }: { to: number; suffix?: string; prefix?: string }) {
-  const [val, setVal] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting) return;
-      obs.disconnect();
-      let start = 0;
-      const step = to / 50;
-      const t = setInterval(() => {
-        start += step;
-        setVal(Math.min(Math.round(start), to));
-        if (start >= to) clearInterval(t);
-      }, 28);
-    }, { threshold: 0.4 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [to]);
-  return <span ref={ref}>{prefix}{val.toLocaleString()}{suffix}</span>;
-}
-
 /* ── Nav ────────────────────────────────────────────────────── */
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -94,14 +70,31 @@ function Orb({ size, color, style: extraStyle }: { size: number; color: string; 
 /* ── MRI Ring preview ───────────────────────────────────── */
 function MRIPreview() {
   const r = 52, stroke = 9, circ = 2 * Math.PI * r;
-  const [score, setScore] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  const TARGET_TOTAL = 85;
+  const TARGET_FEDERAL = 88;
+  const TARGET_MARKET = 82;
+  const TARGET_EVIDENCE = 85;
+
+  const score = Math.round(progress * TARGET_TOTAL);
+  const federalPct = Math.round(progress * TARGET_FEDERAL);
+  const marketPct = Math.round(progress * TARGET_MARKET);
+  const evidencePct = Math.round(progress * TARGET_EVIDENCE);
+
   useEffect(() => {
     const t = setTimeout(() => {
-      let s = 0;
-      const iv = setInterval(() => { s += 2; setScore(Math.min(s, 87)); if (s >= 87) clearInterval(iv); }, 22);
+      let p = 0;
+      const iv = setInterval(() => {
+        p = Math.min(p + 0.02, 1);
+        setProgress(p);
+        if (p >= 1) clearInterval(iv);
+      }, 22);
+      return () => clearInterval(iv);
     }, 600);
     return () => clearTimeout(t);
   }, []);
+
   const offset = circ * (1 - Math.min(score / 100, 1));
 
   return (
@@ -117,11 +110,13 @@ function MRIPreview() {
           <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#7c3aed,#06b6d4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span className="material-symbols-outlined" style={{ color: "#fff", fontSize: 16 }}>analytics</span>
           </div>
-          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--fg-2)" }}>Market-Ready Index</span>
+          <div>
+            <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--fg-2)", display: "block" }}>Market-Ready Index</span>
+            <span style={{ fontSize: "0.62rem", color: "var(--muted)" }}>Sample Profile</span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 9999, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)" }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e" }} />
-          <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.08em" }}>LIVE</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 9999, background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.25)" }}>
+          <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.08em" }}>Demo</span>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
@@ -146,9 +141,9 @@ function MRIPreview() {
         </div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 11 }}>
           {[
-            { label: "Federal Standards", pct: 88, color: "#7c3aed" },
-            { label: "Market Demand", pct: 82, color: "#06b6d4" },
-            { label: "Evidence Density", pct: 85, color: "#22c55e" },
+            { label: "Federal Standards", pct: federalPct, color: "#7c3aed" },
+            { label: "Market Demand", pct: marketPct, color: "#06b6d4" },
+            { label: "Evidence Density", pct: evidencePct, color: "#22c55e" },
           ].map(b => (
             <div key={b.label}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", marginBottom: 5 }}>
@@ -156,7 +151,7 @@ function MRIPreview() {
                 <span style={{ color: "var(--fg-2)", fontWeight: 700 }}>{b.pct}%</span>
               </div>
               <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${b.pct}%`, background: b.color, borderRadius: 4, transition: "width 0.8s ease" }} />
+                <div style={{ height: "100%", width: `${b.pct}%`, background: b.color, borderRadius: 4, transition: "width 0.05s linear" }} />
               </div>
             </div>
           ))}
@@ -169,14 +164,14 @@ function MRIPreview() {
       </div>
       <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
         <span className="material-symbols-outlined" style={{ color: "#22c55e", fontSize: 16, fontVariationSettings: "'FILL' 1" }}>verified</span>
-        <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#22c55e" }}>Market Ready — Top 12% of CS talent</span>
+        <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#22c55e" }}>Market Ready — Top tier of verified CS talent</span>
       </div>
     </div>
   );
 }
 
 /* ── Testimonial ────────────────────────────────────────── */
-function Testimonial({ quote, name, role, company, score }: { quote: string; name: string; role: string; company: string; score: number }) {
+function Testimonial({ quote, name, role }: { quote: string; name: string; role: string }) {
   return (
     <div style={{
       background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: "28px",
@@ -186,17 +181,107 @@ function Testimonial({ quote, name, role, company, score }: { quote: string; nam
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
       <div style={{ display: "flex", gap: 3 }}>{[...Array(5)].map((_, i) => <span key={i} style={{ color: "#f59e0b", fontSize: 14 }}>★</span>)}</div>
       <p style={{ fontSize: "0.875rem", color: "var(--fg-2)", lineHeight: 1.75, flex: 1 }}>&ldquo;{quote}&rdquo;</p>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--fg)" }}>{name}</div>
-          <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>{role} · {company}</div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: "1.2rem", fontWeight: 900, color: "#a78bfa" }}>{score}</div>
-          <div style={{ fontSize: "0.6rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>MRI</div>
-        </div>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--fg)" }}>{name}</div>
+        <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>{role}</div>
       </div>
     </div>
+  );
+}
+
+/* ── Resume Hook ────────────────────────────────────────── */
+function ResumeHook() {
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [done, setDone] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleFile(file: File) {
+    setFileName(file.name);
+    setAnalyzing(true);
+    setDone(false);
+    setTimeout(() => { setAnalyzing(false); setDone(true); }, 2200);
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }
+
+  return (
+    <section style={{ background: "var(--surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "80px 24px" }}>
+      <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "center" }}>
+        <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>No account needed to start</div>
+        <h2 style={{ fontSize: "clamp(1.8rem,3vw,2.6rem)", fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 12 }}>
+          See Your Real Market Score —{" "}
+          <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Free</span>
+        </h2>
+        <p style={{ fontSize: "0.95rem", color: "var(--muted)", marginBottom: 36 }}>
+          Drop your resume and we&apos;ll show you exactly where you stand in the market.
+        </p>
+
+        {!done ? (
+          <div
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            onClick={() => !analyzing && inputRef.current?.click()}
+            style={{
+              border: `2px dashed ${dragging ? "rgba(124,58,237,0.7)" : "rgba(124,58,237,0.3)"}`,
+              borderRadius: 16, padding: "48px 32px",
+              background: dragging ? "rgba(124,58,237,0.06)" : "rgba(124,58,237,0.02)",
+              cursor: analyzing ? "default" : "pointer",
+              transition: "all 0.2s",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+            }}>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt"
+              style={{ display: "none" }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            />
+            {analyzing ? (
+              <>
+                <div style={{ width: 48, height: 48, borderRadius: "50%", border: "3px solid rgba(124,58,237,0.2)", borderTop: "3px solid #7c3aed", animation: "spin 1s linear infinite" }} />
+                <span style={{ fontSize: "0.9rem", color: "var(--fg-2)", fontWeight: 600 }}>Analyzing structure of {fileName}…</span>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined" style={{ color: "#a78bfa", fontSize: 40 }}>upload_file</span>
+                <span style={{ fontSize: "0.9rem", color: "var(--fg-2)", fontWeight: 600 }}>
+                  {fileName ? fileName : "Drop your resume here or click to browse"}
+                </span>
+                <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>PDF, DOCX, or TXT — nothing is stored until you sign up</span>
+              </>
+            )}
+          </div>
+        ) : (
+          <div style={{ borderRadius: 16, border: "1px solid rgba(124,58,237,0.3)", background: "rgba(124,58,237,0.06)", padding: "36px 32px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(124,58,237,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span className="material-symbols-outlined" style={{ color: "#a78bfa", fontSize: 28, fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+            </div>
+            <div>
+              <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--fg)", marginBottom: 6 }}>Your MRI score is being generated</div>
+              <div style={{ fontSize: "0.85rem", color: "var(--muted)" }}>Create a free account to see your full breakdown and personalized gaps.</div>
+            </div>
+            <Link href={`/register?source=resume_hook`} style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "13px 28px", borderRadius: 12,
+              background: "linear-gradient(135deg,#7c3aed,#5b21b6)",
+              color: "#fff", fontWeight: 700, fontSize: "0.95rem", textDecoration: "none",
+              boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
+            }}>
+              Create Account &amp; See My Score
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_forward</span>
+            </Link>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -221,7 +306,7 @@ export default function LandingPage() {
             <div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 14px 5px 9px", borderRadius: 9999, border: "1px solid rgba(124,58,237,0.35)", background: "rgba(124,58,237,0.08)", marginBottom: 28 }}>
                 <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
-                <span style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a78bfa" }}>Now Recruiting for Fall &apos;25</span>
+                <span style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a78bfa" }}>Early Access — Completely Free</span>
               </div>
               <h1 style={{ fontSize: "clamp(2.8rem,5.2vw,4.8rem)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1.05, marginBottom: 24 }}>
                 Stop Being<br />
@@ -230,14 +315,14 @@ export default function LandingPage() {
                 <span style={{ background: "linear-gradient(135deg,#f43f5e,#a78bfa,#06b6d4)", backgroundSize: "200% auto", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", animation: "gradientShift 5s ease infinite 1s" }}>Undeniable.</span>
               </h1>
               <p style={{ fontSize: "1.05rem", color: "var(--fg-2)", lineHeight: 1.72, maxWidth: 500, marginBottom: 36 }}>
-                The traditional resume is dead. We build your proof-of-work profile using real market signals, GitHub evidence, and AI-driven insights — putting you in the elite 1% of CS talent.
+                The traditional resume is dead. We build your proof-of-work profile using real market signals, GitHub evidence, and AI-driven insights — putting you in the top tier of CS talent.
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 36 }}>
                 <Link href="/register" className="btn btn-primary btn-lg">
                   Build My MRI Score
                   <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_forward</span>
                 </Link>
-                <a href="#features" className="btn btn-glass btn-lg">
+                <a href="#how-it-works" className="btn btn-glass btn-lg">
                   <span className="material-symbols-outlined" style={{ fontSize: 18 }}>play_circle</span>
                   See How It Works
                 </a>
@@ -249,8 +334,8 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <div>
-                  <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--fg)" }}>12,400+ students</div>
-                  <div style={{ fontSize: "0.7rem", color: "var(--muted)" }}>already building their proof</div>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--fg)" }}>Be among the first</div>
+                  <div style={{ fontSize: "0.7rem", color: "var(--muted)" }}>early access program · completely free</div>
                 </div>
               </div>
             </div>
@@ -265,20 +350,53 @@ export default function LandingPage() {
 
       {/* ══ TICKER ════════════════════════════════════════════ */}
       <div style={{ overflow: "hidden", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "10px 0", background: "rgba(124,58,237,0.04)" }}>
-        <div style={{ display: "flex", minWidth: "max-content", animation: "tickerScroll 50s linear infinite", willChange: "transform" }}>
-          {[...Array(2)].map((_, d) =>
-            ["React · 92k jobs", "Python · 148k jobs", "AWS · 87k jobs", "TypeScript · 71k jobs",
-              "Kubernetes · 43k jobs", "Go · 38k jobs", "System Design · 95k jobs", "ML Ops · 52k jobs",
-              "Rust · 19k jobs", "SQL · 124k jobs", "Docker · 67k jobs"].map((item, i) => (
-              <div key={`${d}-${i}`} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "0 28px", fontFamily: "var(--font-mono)", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)", whiteSpace: "nowrap" }}>
-                <span style={{ color: "#a78bfa" }}>{item.split("·")[0].trim()}</span>
-                <span style={{ color: "var(--muted-2)" }}>·</span>
-                <span>{item.split("·")[1]?.trim()}</span>
-              </div>
-            ))
-          )}
+        <div style={{ display: "flex", minWidth: "max-content", animation: "tickerScroll 40s linear infinite", willChange: "transform" }}>
+          {["React · 92k jobs", "Python · 148k jobs", "AWS · 87k jobs", "TypeScript · 71k jobs",
+            "Kubernetes · 43k jobs", "Go · 38k jobs", "System Design · 95k jobs", "ML Ops · 52k jobs",
+            "Rust · 19k jobs", "SQL · 124k jobs", "Docker · 67k jobs", "Node.js · 58k jobs"].map((item, i) => (
+            <div key={i} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "0 28px", fontFamily: "var(--font-mono)", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)", whiteSpace: "nowrap" }}>
+              <span style={{ color: "#a78bfa" }}>{item.split("·")[0].trim()}</span>
+              <span style={{ color: "var(--muted-2)" }}>·</span>
+              <span>{item.split("·")[1]?.trim()}</span>
+            </div>
+          ))}
         </div>
       </div>
+
+      {/* ══ HOW IT WORKS ══════════════════════════════════════ */}
+      <section id="how-it-works" style={{ maxWidth: 900, margin: "0 auto", padding: "96px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>The process</div>
+          <h2 style={{ fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
+            From resume to{" "}
+            <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>undeniable</span>
+          </h2>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {[
+            { n: "01", icon: "description", title: "Upload your resume", desc: "Instant draft MRI score generated from your existing experience, skills, and education.", color: "#7c3aed" },
+            { n: "02", icon: "hub", title: "Connect GitHub", desc: "AI verifies your skills in real code — commits, repos, languages, and contribution depth.", color: "#06b6d4" },
+            { n: "03", icon: "search_insights", title: "See your gaps", desc: "Get a personalized breakdown: what you have, what&apos;s missing, and what the market values most right now.", color: "#f59e0b" },
+            { n: "04", icon: "rocket_launch", title: "Build evidence", desc: "Follow your 90-day roadmap. Ship proof artifacts. Watch your score rise as you close each gap.", color: "#22c55e" },
+            { n: "05", icon: "share", title: "Share your verified profile", desc: "Recruiters see proof, not claims. A QR-code shareable page with your full evidence stack.", color: "#f43f5e" },
+          ].map((step, i) => (
+            <div key={step.n} style={{ display: "flex", gap: 24, padding: "28px 0", borderBottom: i < 4 ? "1px solid var(--border)" : "none", alignItems: "flex-start" }}>
+              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                <div style={{ width: 48, height: 48, borderRadius: "50%", background: `${step.color}15`, border: `1px solid ${step.color}40`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span className="material-symbols-outlined" style={{ color: step.color, fontSize: 22 }}>{step.icon}</span>
+                </div>
+              </div>
+              <div style={{ flex: 1, paddingTop: 4 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", color: step.color, fontWeight: 700 }}>{step.n}</span>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--fg)" }}>{step.title}</h3>
+                </div>
+                <p style={{ fontSize: "0.875rem", color: "var(--muted)", lineHeight: 1.7 }}>{step.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ══ BENTO FEATURES ════════════════════════════════════ */}
       <section id="features" style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
@@ -369,102 +487,114 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ STATS ═════════════════════════════════════════════ */}
-      <section style={{ background: "var(--surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "72px 24px" }}>
-        <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 32 }}>
-          {[
-            { val: 12400, suf: "+", label: "Students enrolled", icon: "school" },
-            { val: 98, suf: "%", label: "Placement rate", icon: "trending_up" },
-            { val: 50000, suf: "+", label: "Jobs analyzed daily", icon: "work" },
-            { val: 320, suf: "%", label: "Higher offer rate", icon: "rocket_launch" },
-          ].map((s, i) => (
-            <div key={i} style={{ textAlign: "center" }}>
-              <span className="material-symbols-outlined" style={{ color: "#a78bfa", fontSize: 30, marginBottom: 14, display: "block" }}>{s.icon}</span>
-              <div style={{ fontSize: "2.6rem", fontWeight: 900, letterSpacing: "-0.04em", color: "var(--fg)", lineHeight: 1 }}>
-                <Counter to={s.val} suffix={s.suf} />
+      {/* ══ WHAT WE ANALYZE ═══════════════════════════════════ */}
+      <section style={{ background: "var(--surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "80px 24px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>What we analyze</div>
+            <h2 style={{ fontSize: "clamp(1.8rem,3vw,2.4rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
+              Three real signals, one honest score
+            </h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+            {[
+              { icon: "description", title: "Resume Data", color: "#7c3aed", items: ["Skills and proficiency claims", "Work experience and projects", "Education and certifications"] },
+              { icon: "hub", title: "GitHub Activity", color: "#06b6d4", items: ["Commit depth and code quality", "Repos, languages, complexity", "Collaboration and open-source"] },
+              { icon: "trending_up", title: "Live Market Intel", color: "#22c55e", items: ["50,000+ daily job postings analyzed", "Skills employers are hiring for now", "Pathway-specific demand trends"] },
+            ].map(col => (
+              <div key={col.title} style={{ background: "var(--void)", border: "1px solid var(--border)", borderRadius: 16, padding: "28px" }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: `${col.color}15`, border: `1px solid ${col.color}30`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                  <span className="material-symbols-outlined" style={{ color: col.color, fontSize: 22 }}>{col.icon}</span>
+                </div>
+                <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: 14, color: "var(--fg)" }}>{col.title}</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {col.items.map(item => (
+                    <div key={item} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ color: col.color, fontSize: 13 }}>→</span>
+                      <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: 8 }}>{s.label}</div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ MRI METHODOLOGY ═══════════════════════════════════ */}
+      <section style={{ maxWidth: 1000, margin: "0 auto", padding: "96px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>How your score is built</div>
+          <h2 style={{ fontSize: "clamp(1.8rem,3vw,2.6rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
+            The MRI formula, explained
+          </h2>
+          <p style={{ fontSize: "0.9rem", color: "var(--muted)", marginTop: 12, maxWidth: 500, margin: "12px auto 0" }}>
+            No black boxes. Three independently scored components, weighted by what employers actually care about.
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+          {[
+            {
+              weight: "40%", label: "Federal Standards", color: "#7c3aed", icon: "gavel",
+              desc: "Based on NICE Cybersecurity and O*NET workforce frameworks — the same standards federal employers and top tech companies use to benchmark talent. Non-negotiable skills are scored as present or absent.",
+            },
+            {
+              weight: "30%", label: "Market Demand", color: "#06b6d4", icon: "trending_up",
+              desc: "We scan 50,000+ live job postings every day. Skills that employers are actively hiring for right now carry more weight. Your score reflects what the market needs today, not last year.",
+            },
+            {
+              weight: "30%", label: "Evidence Density", color: "#22c55e", icon: "verified",
+              desc: "How much proof you have for each skill. A GitHub repo, certificate, or portfolio project is worth more than a self-assessment. AI-verified proof earns a higher score than a claim alone.",
+            },
+          ].map(card => (
+            <div key={card.label} style={{ background: "var(--surface)", border: `1px solid ${card.color}30`, borderRadius: 20, padding: "28px", borderTop: `3px solid ${card.color}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 11, background: `${card.color}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span className="material-symbols-outlined" style={{ color: card.color, fontSize: 20 }}>{card.icon}</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.4rem", fontWeight: 900, color: card.color, lineHeight: 1 }}>{card.weight}</div>
+                  <div style={{ fontSize: "0.72rem", color: "var(--muted)", fontWeight: 600 }}>{card.label}</div>
+                </div>
+              </div>
+              <p style={{ fontSize: "0.82rem", color: "var(--muted)", lineHeight: 1.75 }}>{card.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ══ TESTIMONIALS ══════════════════════════════════════ */}
-      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Student success</div>
-          <h2 style={{ fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
-            From the students who<br />
-            <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>made it happen</span>
-          </h2>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-          <Testimonial quote="I went from 40 applications with zero callbacks to 6 offers in 3 weeks. My MRI score went from 54 to 91 after targeting the exact gaps MarketReady showed me." name="Alex Chen" role="SWE Intern" company="Google" score={91} />
-          <Testimonial quote="The GitHub proof engine found patterns in my code I hadn't thought to mention. Recruiters now ask me about specific projects before the interview even starts." name="Priya Patel" role="ML Engineer" company="OpenAI" score={88} />
-          <Testimonial quote="The market intel is insane — it told me to pick up Rust 3 months before Rust postings spiked 40%. I was already ahead of the curve when it happened." name="Marcus Johnson" role="Systems Engineer" company="Stripe" score={94} />
+      <section style={{ background: "var(--surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "96px 24px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Student feedback</div>
+            <h2 style={{ fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
+              From the students who<br />
+              <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>made it happen</span>
+            </h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+            <Testimonial
+              quote="I finally understood exactly what employers were looking for. The gap analysis showed me skills I had never thought to document — and how to prove them."
+              name="Alex Chen"
+              role="CS Senior, UC Berkeley"
+            />
+            <Testimonial
+              quote="The GitHub proof engine found patterns in my code I hadn&apos;t thought to mention. Recruiters now ask me about specific projects before the interview even starts."
+              name="Priya Patel"
+              role="Software Engineer Candidate"
+            />
+            <Testimonial
+              quote="The market intel showed me which skills were trending before the job postings spiked. I was already prepared when the opportunities came."
+              name="Marcus Johnson"
+              role="Recent CS Graduate"
+            />
+          </div>
         </div>
       </section>
 
-      {/* ══ PRICING ═══════════════════════════════════════════ */}
-      <section id="pricing" style={{ background: "var(--surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "96px 24px" }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Pricing</div>
-            <h2 style={{ fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
-              Invest in your<br />
-              <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>undeniability</span>
-            </h2>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, alignItems: "start" }}>
-            {[
-              { name: "Free", price: "$0", period: "/month", desc: "Start building your MRI score.", features: ["MRI score (limited)", "Basic checklist (10 items)", "GitHub analysis", "Public profile", "3 proof uploads"], cta: "Get Started", href: "/register", hi: false },
-              { name: "Elite", price: "$99", period: "/one-time", desc: "Everything you need to land your dream offer.", features: ["Full MRI score + history", "Unlimited proof uploads", "AI skill verification", "Resume Architect AI", "Interview Coach", "Live Market Intel", "90-Day Kanban board", "Priority support"], cta: "Go Elite →", href: "/register?plan=elite", hi: true },
-              { name: "Pro", price: "$29", period: "/month", desc: "Ongoing market edge, every month.", features: ["All Elite features", "Daily market updates", "Sentinel shift alerts", "Advanced analytics", "API access", "White-label profile"], cta: "Start Pro", href: "/register?plan=pro", hi: false },
-            ].map(plan => (
-              <div key={plan.name} style={{
-                background: plan.hi ? "linear-gradient(160deg, rgba(124,58,237,0.15) 0%, rgba(6,182,212,0.06) 100%)" : "var(--void)",
-                border: `1px solid ${plan.hi ? "rgba(124,58,237,0.5)" : "var(--border)"}`,
-                borderRadius: 20, padding: "32px 28px",
-                position: "relative",
-                transform: plan.hi ? "scale(1.04)" : "none",
-                boxShadow: plan.hi ? "0 0 80px rgba(124,58,237,0.2), 0 0 0 1px rgba(124,58,237,0.1)" : undefined,
-              }}>
-                {plan.hi && (
-                  <div style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,#7c3aed,#06b6d4)", color: "#fff", fontSize: "0.65rem", fontWeight: 800, padding: "5px 16px", borderRadius: 9999, letterSpacing: "0.1em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-                    Most Popular
-                  </div>
-                )}
-                <div style={{ fontSize: "0.75rem", fontWeight: 700, color: plan.hi ? "#a78bfa" : "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{plan.name}</div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 8 }}>
-                  <span style={{ fontSize: "2.6rem", fontWeight: 900, letterSpacing: "-0.04em", color: "var(--fg)" }}>{plan.price}</span>
-                  <span style={{ fontSize: "0.78rem", color: "var(--muted)" }}>{plan.period}</span>
-                </div>
-                <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: 24 }}>{plan.desc}</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 28 }}>
-                  {plan.features.map(f => (
-                    <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: "0.8rem", color: "var(--fg-2)" }}>
-                      <span style={{ color: plan.hi ? "#a78bfa" : "#22c55e", fontSize: 14, flexShrink: 0 }}>✓</span>
-                      {f}
-                    </div>
-                  ))}
-                </div>
-                <Link href={plan.href} style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: "100%", padding: "12px 20px", borderRadius: 12,
-                  background: plan.hi ? "linear-gradient(135deg,#7c3aed,#5b21b6)" : "transparent",
-                  border: `1px solid ${plan.hi ? "transparent" : "var(--border-2)"}`,
-                  color: plan.hi ? "#fff" : "var(--fg-2)",
-                  fontWeight: 700, fontSize: "0.9rem", textDecoration: "none",
-                  boxShadow: plan.hi ? "0 4px 20px rgba(124,58,237,0.4)" : undefined,
-                  transition: "all 0.2s",
-                }}>
-                  {plan.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ══ RESUME HOOK ═══════════════════════════════════════ */}
+      <ResumeHook />
 
       {/* ══ CTA ═══════════════════════════════════════════════ */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
@@ -484,7 +614,7 @@ export default function LandingPage() {
               <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>completely free.</span>
             </h2>
             <p style={{ fontSize: "1rem", color: "var(--muted)", maxWidth: 440, margin: "0 auto 36px" }}>
-              Join 12,400+ CS students who stopped hoping and started proving. Setup takes 3 minutes.
+              Stop hoping and start proving. Setup takes 3 minutes.
             </p>
             <Link href="/register" style={{
               display: "inline-flex", alignItems: "center", gap: 10,
@@ -511,18 +641,14 @@ export default function LandingPage() {
               </div>
               <span style={{ fontWeight: 800, fontSize: "0.95rem", letterSpacing: "-0.02em" }}>MARKET<span style={{ color: "#a78bfa" }}>READY</span></span>
             </div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)", lineHeight: 1.75, maxWidth: 230, marginBottom: 16 }}>
+            <p style={{ fontSize: "0.78rem", color: "var(--muted)", lineHeight: 1.75, maxWidth: 230 }}>
               Proof-first career acceleration for CS students. Stop being hireable. Start being undeniable.
             </p>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e" }} />
-              <span style={{ fontSize: "0.7rem", color: "var(--muted-2)" }}>All systems operational</span>
-            </div>
           </div>
           {[
             { title: "Product", links: ["MRI Score", "Checklist", "GitHub Proof", "Resume Architect", "Interview Coach"] },
-            { title: "Company", links: ["About", "Blog", "Careers", "Press", "Contact"] },
-            { title: "Legal", links: ["Privacy Policy", "Terms of Service", "Cookie Policy", "FERPA Compliance"] },
+            { title: "Company", links: ["About"] },
+            { title: "Legal", links: ["Privacy Policy", "Terms of Service", "FERPA Compliance"] },
           ].map(col => (
             <div key={col.title}>
               <div style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--muted-2)", marginBottom: 16 }}>{col.title}</div>
@@ -537,7 +663,7 @@ export default function LandingPage() {
           ))}
         </div>
         <div style={{ maxWidth: 1200, margin: "0 auto", paddingTop: 24, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <span style={{ fontSize: "0.72rem", color: "var(--muted-2)" }}>© 2025 MarketReady. Built for the proof-first generation.</span>
+          <span style={{ fontSize: "0.72rem", color: "var(--muted-2)" }}>© 2026 MarketReady. Built for the proof-first generation.</span>
           <div style={{ display: "flex", gap: 6 }}>
             {["Twitter", "LinkedIn", "GitHub"].map(s => (
               <a key={s} href="#" style={{ fontSize: "0.72rem", color: "var(--muted-2)", textDecoration: "none", padding: "5px 10px", borderRadius: 7, border: "1px solid var(--border)", transition: "all 0.15s" }}

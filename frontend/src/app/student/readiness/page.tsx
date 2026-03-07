@@ -32,6 +32,67 @@ type SimulatorResult = {
 };
 type StudentProfile = { github_username?: string | null };
 
+function WhyThisScore({ mri }: { mri: MRIData }) {
+  const [open, setOpen] = useState(false);
+  const components = [
+    {
+      label: "Federal Standards (40%)", val: mri.components.federal_standards, color: "#22c55e", icon: "gavel",
+      desc: "Based on NICE Cybersecurity and O*NET workforce frameworks. Skills are scored as present, missing, or partially satisfied. Non-negotiable items cap your max score at 75% if any are missing.",
+    },
+    {
+      label: "Market Demand (30%)", val: mri.components.market_demand, color: "#7c3aed", icon: "trending_up",
+      desc: "Live scan of 50,000+ job postings. Skills with high employer demand in your pathway carry more weight. This component updates as the market shifts.",
+    },
+    {
+      label: "Evidence Density (30%)", val: mri.components.evidence_density, color: "#06b6d4", icon: "verified",
+      desc: "How much proof you have per skill. AI-verified certificates earn an extra +15% bonus. GitHub commits, certifications, and portfolio projects all count more than self-assessments.",
+    },
+  ];
+  return (
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: "20px 24px" }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="material-symbols-outlined" style={{ color: "#a78bfa", fontSize: 18 }}>info</span>
+          <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--fg)" }}>Why this score?</span>
+        </div>
+        <span className="material-symbols-outlined" style={{ color: "var(--muted)", fontSize: 18, transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "none" }}>expand_more</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+          <p style={{ fontSize: "0.78rem", color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
+            MRI = (Federal Standards × 0.40) + (Market Demand × 0.30) + (Evidence Density × 0.30)
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+            {components.map(c => (
+              <div key={c.label} style={{ padding: "14px", borderRadius: 12, background: `${c.color}08`, border: `1px solid ${c.color}25` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <span className="material-symbols-outlined" style={{ color: c.color, fontSize: 15 }}>{c.icon}</span>
+                  <span style={{ fontSize: "0.72rem", fontWeight: 700, color: c.color }}>{c.label}</span>
+                </div>
+                <div style={{ fontSize: "1.6rem", fontWeight: 900, color: c.color, lineHeight: 1, marginBottom: 8 }}>{c.val.toFixed(0)}%</div>
+                <p style={{ fontSize: "0.72rem", color: "var(--muted)", lineHeight: 1.6 }}>{c.desc}</p>
+              </div>
+            ))}
+          </div>
+          {mri.gaps.length > 0 && (
+            <div>
+              <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#ef4444", marginBottom: 8 }}>Top gaps reducing your score</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {mri.gaps.slice(0, 6).map(g => (
+                  <span key={g} style={{ fontSize: "0.72rem", padding: "3px 10px", borderRadius: 99, background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}>{g}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScoreRing({ target }: { target: number }) {
   const [cur, setCur] = useState(0);
   useEffect(() => {
@@ -195,6 +256,11 @@ export default function StudentReadinessPage() {
               </div>
             </div>
           </div>
+
+          {/* Why this score? */}
+          {mri && (
+            <WhyThisScore mri={mri} />
+          )}
 
           {/* GitHub Audit */}
           <div data-testid="github-audit-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: "24px" }}>

@@ -79,6 +79,47 @@ GENERAL_PROOF_TYPES = [
 _resume_context_cache_lock = Lock()
 _resume_context_cache: dict[str, tuple[float, dict[str, Any]]] = {}
 
+# ── LLM response cache (deterministic calls only) ──────────────
+import hashlib as _hashlib
+_LLM_CACHE_TTL_SECONDS = 3600  # 1 hour
+_llm_cache_lock = Lock()
+_llm_cache: dict[str, tuple[str, float]] = {}  # key → (result, expires_at)
+
+
+def _llm_cache_key(system_prompt: str, user_payload: str) -> str:
+    h = _hashlib.sha256((system_prompt + "\x00" + user_payload).encode()).hexdigest()
+    return h[:24]
+
+
+def _cached_call_llm(
+    system_prompt: str,
+    user_payload: str,
+    *,
+    override_model: str | None = None,
+    expect_json: bool = True,
+) -> str:
+    """Call LLM with in-memory caching for deterministic prompts (TTL=1h)."""
+    key = _llm_cache_key(system_prompt, user_payload)
+    now = time.time()
+    with _llm_cache_lock:
+        entry = _llm_cache.get(key)
+        if entry and entry[1] > now:
+            return entry[0]
+    result = _call_llm(system_prompt, user_payload, override_model=override_model, expect_json=expect_json)
+    with _llm_cache_lock:
+        _llm_cache[key] = (result, now + _LLM_CACHE_TTL_SECONDS)
+    return result
+
+
+def _evict_expired_llm_cache() -> int:
+    """Remove expired LLM cache entries. Returns count evicted."""
+    now = time.time()
+    with _llm_cache_lock:
+        expired = [k for k, (_, exp) in _llm_cache.items() if exp <= now]
+        for k in expired:
+            del _llm_cache[k]
+    return len(expired)
+
 
 def _truncate(text: str, limit: int = MAX_EVIDENCE_CHARS) -> str:
     if len(text) <= limit:

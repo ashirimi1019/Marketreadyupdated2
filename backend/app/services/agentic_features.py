@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.entities import ChecklistItem, ChecklistVersion, MarketSignal, UserPathway
 from app.services.ai import (
+    _cached_call_llm,
     _call_llm,
     _log_ai_audit,
     _safe_json,
@@ -192,6 +193,10 @@ def evaluate_crucible_response(
     if len(trimmed_answer) < 20:
         raise ValueError("Provide a detailed response with your first 3 steps.")
 
+    # Compute keyword-based preliminary score immediately (fast path, ~100ms)
+    keyword_fallback = _fallback_crucible_score(trimmed_answer)
+    preliminary_score: float = float(keyword_fallback.get("process_score", 0.0))
+
     model_used = "fallback"
     ai_failure_reason: str | None = None
     parsed: dict[str, Any] | None = None
@@ -211,17 +216,15 @@ def evaluate_crucible_response(
                     "recovery validation",
                 ],
             }
+            system_prompt = (
+                "You are a hiring evaluator scoring behavioral crisis response process. "
+                "Score process quality, not factual perfection. "
+                "Ignore demographics, pedigree, and identity factors. "
+                "Return strict JSON: "
+                "{process_score,rating,dimensions:[{label,score}],strengths:[...],risks:[...],next_actions:[...]}"
+            )
             parsed = _safe_json(
-                _call_llm(
-                    (
-                        "You are a hiring evaluator scoring behavioral crisis response process. "
-                        "Score process quality, not factual perfection. "
-                        "Ignore demographics, pedigree, and identity factors. "
-                        "Return strict JSON: "
-                        "{process_score,rating,dimensions:[{label,score}],strengths:[...],risks:[...],next_actions:[...]}"
-                    ),
-                    json.dumps(payload),
-                )
+                _cached_call_llm(system_prompt, json.dumps(payload))
             )
             model_used = get_active_ai_model()
         except Exception as exc:
@@ -283,6 +286,7 @@ def evaluate_crucible_response(
         "log_snippet": scenario["log_snippet"],
         "time_limit_seconds": CRUCIBLE_TIME_LIMIT_SECONDS,
         "process_score": process_score,
+        "preliminary_score": round(preliminary_score, 1),
         "rating": rating,
         "dimensions": cleaned_dimensions,
         "strengths": _dedupe(strengths)[:4],

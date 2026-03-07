@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { apiGet, apiSend } from "@/lib/api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { apiGet, apiSend, API_BASE } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 type Major = {
@@ -40,6 +40,13 @@ export default function StudentOnboardingPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Resume upload state
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeResult, setResumeResult] = useState<{ skills_count: number; skills: string[] } | null>(null);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     apiGet<Major[]>("/majors")
@@ -103,6 +110,26 @@ export default function StudentOnboardingPage() {
   }, [selectedMajor]);
 
   const headers = useMemo(() => ({ "X-User-Id": username }), [username]);
+
+  const uploadResume = async (file: File) => {
+    if (!isLoggedIn) return;
+    setResumeUploading(true); setResumeError(null); setResumeResult(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${API_BASE}/user/profile/resume`, {
+        method: "POST",
+        headers: { ...(localStorage.getItem("mp_auth_token") ? { "X-Auth-Token": localStorage.getItem("mp_auth_token")! } : {}) },
+        body: form,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      const skills: string[] = data?.parsed_skills ?? data?.skills ?? [];
+      setResumeResult({ skills_count: skills.length, skills: skills.slice(0, 12) });
+    } catch {
+      setResumeError("Resume upload failed. You can add it later from your profile.");
+    } finally { setResumeUploading(false); }
+  };
 
   const submitSelection = async () => {
     if (!selectedMajor || !selectedPathway) { setMessage("Select a major and pathway first."); return; }
@@ -354,6 +381,80 @@ export default function StudentOnboardingPage() {
           </div>
         )}
       </div>
+
+      {/* Resume upload section */}
+      {isLoggedIn && (
+        <div style={{ background: "var(--surface)", borderRadius: 16, padding: 20, border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: "#22c55e" }}>upload_file</span>
+            </div>
+            <div>
+              <h3 style={{ fontWeight: 700, fontSize: "0.95rem" }}>Upload Your Resume</h3>
+              <p style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Optional — Recommended · Pre-fills your profile and drafts your first MRI score</p>
+            </div>
+          </div>
+
+          {!resumeResult ? (
+            <div
+              onClick={() => !resumeUploading && resumeInputRef.current?.click()}
+              style={{
+                border: "1px dashed rgba(34,197,94,0.4)", borderRadius: 12, padding: "24px 20px",
+                textAlign: "center", cursor: resumeUploading ? "default" : "pointer",
+                background: "rgba(34,197,94,0.03)", transition: "all 0.2s",
+              }}
+            >
+              <input
+                ref={resumeInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                style={{ display: "none" }}
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) { setResumeFile(f); uploadResume(f); }
+                }}
+              />
+              {resumeUploading ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid rgba(34,197,94,0.2)", borderTop: "3px solid #22c55e", animation: "spin 1s linear infinite" }} />
+                  <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>Analyzing {resumeFile?.name}…</span>
+                </div>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined" style={{ color: "#22c55e", fontSize: 28, display: "block", marginBottom: 6 }}>description</span>
+                  <span style={{ fontSize: "0.85rem", color: "var(--fg-2)", fontWeight: 600 }}>Click to upload your resume</span>
+                  <span style={{ display: "block", fontSize: "0.72rem", color: "var(--muted)", marginTop: 4 }}>PDF, DOCX, or TXT</span>
+                </>
+              )}
+            </div>
+          ) : (
+            <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="material-symbols-outlined" style={{ color: "#22c55e", fontSize: 18, fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#22c55e" }}>{resumeResult.skills_count} skills detected from your resume</span>
+              </div>
+              {resumeResult.skills.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {resumeResult.skills.map(s => (
+                    <span key={s} style={{ fontSize: "0.7rem", padding: "3px 10px", borderRadius: 99, background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>{s}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {resumeError && (
+            <p style={{ fontSize: "0.78rem", color: "#f59e0b", marginTop: -8 }}>{resumeError}</p>
+          )}
+
+          <button
+            onClick={() => { setResumeResult(null); setResumeError(null); setResumeFile(null); }}
+            style={{ display: resumeResult ? "inline-flex" : "none", alignSelf: "flex-start", fontSize: "0.75rem", color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+          >
+            Upload a different resume
+          </button>
+        </div>
+      )}
     </div>
   );
 }

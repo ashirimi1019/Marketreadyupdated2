@@ -404,6 +404,7 @@ class AiCrucibleOut(BaseModel):
     log_snippet: str
     time_limit_seconds: int = 300
     process_score: float = Field(ge=0, le=100)
+    preliminary_score: Optional[float] = Field(default=None, ge=0, le=100)
     rating: str
     dimensions: List[AiCrucibleDimensionOut] = Field(default_factory=list)
     strengths: List[str] = Field(default_factory=list)

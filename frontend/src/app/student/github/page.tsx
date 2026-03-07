@@ -33,12 +33,14 @@ function formatSnapshotFreshness(timestamp?: string | null, ageMinutes?: number 
 export default function StudentGithubPage() {
   const { isLoggedIn } = useSession();
   const [githubUsername, setGithubUsername] = useState("");
+  const [savedGithubUsername, setSavedGithubUsername] = useState<string | null>(null);
   const [targetJob, setTargetJob] = useState("software engineer");
   const [location, setLocation] = useState("united states");
   const [repoUrl, setRepoUrl] = useState("");
   const [auditResult, setAuditResult] = useState<GitHubAudit | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
+  const [usernameSavedToast, setUsernameSavedToast] = useState(false);
   const [proofResult, setProofResult] = useState<RepoProofChecker | null>(null);
   const [proofLoading, setProofLoading] = useState(false);
   const [proofError, setProofError] = useState<string | null>(null);
@@ -49,18 +51,36 @@ export default function StudentGithubPage() {
   useEffect(() => {
     if (!isLoggedIn) return;
     apiGet<StudentProfile>("/user/profile").then(profile => {
-      if (profile.github_username) { setGithubUsername(profile.github_username); setRepoUrl(`https://github.com/${profile.github_username}`); }
+      if (profile.github_username) {
+        setGithubUsername(profile.github_username);
+        setSavedGithubUsername(profile.github_username);
+        setRepoUrl(`https://github.com/${profile.github_username}`);
+      }
       if (profile.state) setLocation(profile.state);
     }).catch(() => null);
   }, [isLoggedIn]);
 
   const runGithubSignalAudit = async () => {
     if (!isLoggedIn) { setAuditError("Please log in to run GitHub audit."); return; }
-    if (!githubUsername.trim()) { setAuditError("Add your GitHub username first."); return; }
+    const trimmedUsername = githubUsername.trim();
+    if (!trimmedUsername) { setAuditError("Add your GitHub username first."); return; }
     setAuditLoading(true); setAuditError(null);
     try {
-      const data = await apiGet<GitHubAudit>(`/github/audit/${encodeURIComponent(githubUsername.trim())}`);
+      const data = await apiGet<GitHubAudit>(`/github/audit/${encodeURIComponent(trimmedUsername)}`);
       setAuditResult(data);
+      // Auto-save GitHub username to profile if it differs from what's already saved
+      if (trimmedUsername !== savedGithubUsername) {
+        try {
+          await apiSend("/user/profile", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ github_username: trimmedUsername }),
+          });
+          setSavedGithubUsername(trimmedUsername);
+          setUsernameSavedToast(true);
+          setTimeout(() => setUsernameSavedToast(false), 3500);
+        } catch { /* non-critical, ignore */ }
+      }
     } catch (error) { setAuditError(getErrorMessage(error) || "GitHub signal audit failed."); setAuditResult(null); }
     finally { setAuditLoading(false); }
   };
@@ -158,6 +178,12 @@ export default function StudentGithubPage() {
               </Link>
             </div>
             {auditError && <p style={{ color: "#ef4444", fontSize: "0.82rem", marginTop: 10 }}>{auditError}</p>}
+            {usernameSavedToast && (
+              <p style={{ color: "#22c55e", fontSize: "0.78rem", marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check_circle</span>
+                GitHub username saved to your profile
+              </p>
+            )}
           </div>
 
           {auditResult && (
