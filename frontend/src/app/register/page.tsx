@@ -45,8 +45,8 @@ export default function RegisterPage() {
         body: JSON.stringify({ username: username.trim(), email: emailValue, password }),
       });
       if (res.auth_token && res.refresh_token) {
-        login(res.user_id, res.auth_token, res.refresh_token);
-        router.push("/");
+        login(username.trim(), res.auth_token, res.refresh_token);
+        router.push("/student/readiness");
       } else if (res.email_verification_required) {
         setMsg(res.message ?? "Account created. Verify your email before signing in.", false);
       } else {

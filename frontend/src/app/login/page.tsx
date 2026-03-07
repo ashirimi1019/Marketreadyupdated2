@@ -46,9 +46,9 @@ export default function LoginPage() {
         body: JSON.stringify({ username: username.trim(), password }),
       });
       if (!res.auth_token || !res.refresh_token) return setMsg(res.message ?? "Login blocked.");
-      login(res.user_id, res.auth_token, res.refresh_token);
+      login(username.trim(), res.auth_token, res.refresh_token);
       setPassword("");
-      router.push("/");
+      router.push("/student/readiness");
     } catch (error) {
       if (isRateLimited(error)) {
         const retry = getRetryAfterSeconds(error);

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSession } from "@/lib/session";
 
 /* ── Animated counter ───────────────────────────────────────── */
 function Counter({ to, suffix = "", prefix = "" }: { to: number; suffix?: string; prefix?: string }) {
@@ -30,6 +31,7 @@ function Counter({ to, suffix = "", prefix = "" }: { to: number; suffix?: string
 /* ── Nav ────────────────────────────────────────────────────── */
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const { isLoggedIn, username } = useSession();
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 24);
     window.addEventListener("scroll", h, { passive: true });
@@ -51,8 +53,22 @@ function Nav() {
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <Link href="/login" className="btn btn-ghost btn-sm">Sign In</Link>
-          <Link href="/register" className="btn btn-primary btn-sm">Get Started →</Link>
+          {isLoggedIn ? (
+            <>
+              <span style={{ fontSize: "0.82rem", color: "var(--muted)", marginRight: 4 }}>
+                Hey, <strong style={{ color: "var(--fg)" }}>{username}</strong>
+              </span>
+              <Link href="/student/readiness" className="btn btn-primary btn-sm">
+                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>dashboard</span>
+                Dashboard →
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="btn btn-ghost btn-sm">Sign In</Link>
+              <Link href="/register" className="btn btn-primary btn-sm">Get Started →</Link>
+            </>
+          )}
         </div>
       </div>
     </nav>
