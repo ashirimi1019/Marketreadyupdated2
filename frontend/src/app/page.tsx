@@ -170,25 +170,6 @@ function MRIPreview() {
   );
 }
 
-/* ── Testimonial ────────────────────────────────────────── */
-function Testimonial({ quote, name, role }: { quote: string; name: string; role: string }) {
-  return (
-    <div style={{
-      background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: "28px",
-      display: "flex", flexDirection: "column", gap: 16, transition: "all 0.3s",
-    }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(124,58,237,0.3)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
-      <div style={{ display: "flex", gap: 3 }}>{[...Array(5)].map((_, i) => <span key={i} style={{ color: "#f59e0b", fontSize: 14 }}>★</span>)}</div>
-      <p style={{ fontSize: "0.875rem", color: "var(--fg-2)", lineHeight: 1.75, flex: 1 }}>&ldquo;{quote}&rdquo;</p>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--fg)" }}>{name}</div>
-        <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>{role}</div>
-      </div>
-    </div>
-  );
-}
-
 /* ── Resume Hook ────────────────────────────────────────── */
 function ResumeHook() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -409,6 +390,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══ RESUME HOOK ═══════════════════════════════════════ */}
+      <ResumeHook />
+
       {/* ══ BENTO FEATURES ════════════════════════════════════ */}
       <section id="features" style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
@@ -573,39 +557,6 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
-
-      {/* ══ TESTIMONIALS ══════════════════════════════════════ */}
-      <section style={{ background: "var(--surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "96px 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <div style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>Student feedback</div>
-            <h2 style={{ fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 800, letterSpacing: "-0.03em" }}>
-              From the students who<br />
-              <span style={{ background: "linear-gradient(135deg,#a78bfa,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>made it happen</span>
-            </h2>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-            <Testimonial
-              quote="I finally understood exactly what employers were looking for. The gap analysis showed me skills I had never thought to document — and how to prove them."
-              name="Alex Chen"
-              role="CS Senior, UC Berkeley"
-            />
-            <Testimonial
-              quote="The GitHub proof engine found patterns in my code I hadn&apos;t thought to mention. Recruiters now ask me about specific projects before the interview even starts."
-              name="Priya Patel"
-              role="Software Engineer Candidate"
-            />
-            <Testimonial
-              quote="The market intel showed me which skills were trending before the job postings spiked. I was already prepared when the opportunities came."
-              name="Marcus Johnson"
-              role="Recent CS Graduate"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ══ RESUME HOOK ═══════════════════════════════════════ */}
-      <ResumeHook />
 
       {/* ══ CTA ═══════════════════════════════════════════════ */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "96px 24px" }}>
