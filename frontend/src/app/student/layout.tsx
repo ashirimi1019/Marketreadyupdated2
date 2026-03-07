@@ -27,11 +27,11 @@ const NAV_ITEMS = [
   { href: "/student/interview", label: "Interview AI", icon: "psychology", section: "Signals" },
   { href: "/student/resume-architect", label: "Resume AI", icon: "description", section: "Signals" },
   { href: "/student/timeline", label: "Timeline", icon: "timeline", section: "Planning" },
-  { href: "/student/onboarding", label: "Career Hub", icon: "rocket_launch", section: "Planning" },
-  { href: "/student/profile", label: "Profile", icon: "person", section: "Account" },
+  { href: "/student/profile", label: "My Profile", icon: "manage_accounts", section: "Account" },
 ];
 
 const SECTIONS = ["Core", "Signals", "Planning", "Account"] as const;
+// "Planning" now only contains Timeline; "Account" contains My Profile (with Career Path tab)
 
 const kindColor: Record<string, string> = {
   market_shift: "#f59e0b",
@@ -121,7 +121,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <div key={section} style={{ marginBottom: 8 }}>
             <div className="sidebar-section-label">{section}</div>
             {items.map(item => {
-              const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              const active = pathname === item.href || pathname.startsWith(item.href + "/")
+                || (item.href === "/student/profile" && pathname === "/student/onboarding");
               return (
                 <Link key={item.href} href={item.href}
                   onClick={onNavigate}

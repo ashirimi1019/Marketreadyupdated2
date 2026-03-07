@@ -243,15 +243,31 @@ def _extract_rtf_text(raw_text: str) -> str | None:
 
 
 def _extract_pdf_text(path: Path) -> str | None:
+    # Try pypdf first
     try:
         from pypdf import PdfReader  # type: ignore
-    except Exception:
-        return None
-    try:
         reader = PdfReader(str(path))
-        return _extract_pdf_text_from_reader(reader)
+        result = _extract_pdf_text_from_reader(reader)
+        if result:
+            return result
     except Exception:
-        return None
+        pass
+    # Fallback: pdfplumber (handles mixed-layout and complex PDFs better)
+    try:
+        import pdfplumber  # type: ignore
+        with pdfplumber.open(str(path)) as pdf:
+            parts: list[str] = []
+            for i, page in enumerate(pdf.pages):
+                if i >= MAX_RESUME_PDF_PAGES:
+                    break
+                text = page.extract_text() or ""
+                if text.strip():
+                    parts.append(text)
+            if parts:
+                return _clean_text("\n".join(parts), limit=MAX_RESUME_CONTEXT_CHARS)
+    except Exception:
+        pass
+    return None
 
 
 def _extract_pdf_text_from_reader(reader: Any) -> str | None:
@@ -325,18 +341,32 @@ def _extract_resume_blob_text(blob: bytes, suffix: str) -> str | None:
         except Exception:
             return _extract_text_from_bytes(blob, limit=MAX_RESUME_CONTEXT_CHARS)
     if suffix == ".pdf":
+        # Try pypdf first (fast, handles most text-based PDFs)
         try:
             from pypdf import PdfReader  # type: ignore
-        except Exception:
-            return _extract_text_from_bytes(blob, limit=MAX_RESUME_CONTEXT_CHARS)
-        try:
             reader = PdfReader(io.BytesIO(blob))
             parsed = _extract_pdf_text_from_reader(reader)
-            if not parsed:
-                return _extract_text_from_bytes(blob, limit=MAX_RESUME_CONTEXT_CHARS)
-            return parsed
+            if parsed:
+                return parsed
         except Exception:
-            return _extract_text_from_bytes(blob, limit=MAX_RESUME_CONTEXT_CHARS)
+            pass
+        # Fallback: try pdfplumber (handles more PDF variants including mixed layouts)
+        try:
+            import pdfplumber  # type: ignore
+            with pdfplumber.open(io.BytesIO(blob)) as pdf:
+                parts: list[str] = []
+                for i, page in enumerate(pdf.pages):
+                    if i >= MAX_RESUME_PDF_PAGES:
+                        break
+                    page_text = page.extract_text() or ""
+                    if page_text.strip():
+                        parts.append(page_text)
+                if parts:
+                    return _clean_text("\n".join(parts), limit=MAX_RESUME_CONTEXT_CHARS)
+        except Exception:
+            pass
+        # Last resort: raw bytes decode (usually fails for image PDFs — handled upstream)
+        return _extract_text_from_bytes(blob, limit=MAX_RESUME_CONTEXT_CHARS)
     return _extract_text_from_bytes(blob, limit=MAX_RESUME_CONTEXT_CHARS)
 
 

@@ -9,4 +9,5 @@ alembic
 boto3
 httpx
 pypdf
+pdfplumber
 pytest

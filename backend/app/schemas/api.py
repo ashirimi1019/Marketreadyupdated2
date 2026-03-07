@@ -121,6 +121,8 @@ class StudentProfileOut(BaseModel):
     resume_uploaded_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    parsed_skills: Optional[List[str]] = None
+    resume_parse_status: Optional[str] = None
 
 
 class ChecklistItemOut(BaseModel):

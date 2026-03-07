@@ -409,12 +409,39 @@ def upload_resume(
     if old_resume_url and old_resume_url != resume_url:
         _cleanup_resume_file(old_resume_url)
 
+    parse_result: dict = {}
     try:
-        sync_resume_requirement_matches(db, user_id)
+        parse_result = sync_resume_requirement_matches(db, user_id) or {}
     except Exception:
         logger.exception("sync_resume_requirement_matches failed for user %s", user_id)
     db.refresh(profile)
-    return _serialize_profile(profile)
+
+    # Collect matched checklist item titles as parsed_skills for the UI
+    parsed_skills: list[str] = []
+    resume_parse_status = parse_result.get("mode", "unknown")
+    try:
+        resume_proofs = (
+            db.query(Proof)
+            .filter(Proof.user_id == user_id)
+            .filter(Proof.proof_type == RESUME_MATCH_PROOF_TYPE)
+            .all()
+        )
+        if resume_proofs:
+            item_ids = [p.checklist_item_id for p in resume_proofs if p.checklist_item_id]
+            if item_ids:
+                matched_items = (
+                    db.query(ChecklistItem)
+                    .filter(ChecklistItem.id.in_(item_ids))
+                    .all()
+                )
+                parsed_skills = [item.title for item in matched_items]
+    except Exception:
+        logger.exception("Failed to collect parsed_skills for user %s", user_id)
+
+    result = _serialize_profile(profile)
+    result["parsed_skills"] = parsed_skills
+    result["resume_parse_status"] = resume_parse_status
+    return result
 
 
 @router.delete("/profile/resume", response_model=StudentProfileOut)
