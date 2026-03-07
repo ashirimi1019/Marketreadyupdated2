@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     careeronestop_user_id: str | None = None
     market_auto_enabled: bool = False
     market_auto_run_on_startup: bool = False
-    market_auto_interval_minutes: int = 360
+    market_auto_interval_minutes: int = 15
     market_auto_provider_list: str = "adzuna,onet,careeronestop"
     market_auto_role_families: str = ""
     market_auto_pathway_ids: str = ""

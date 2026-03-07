@@ -60,6 +60,40 @@ CHECKLISTS = {
             ("Incident response fundamentals", ["writeup", "lab_report"], False),
         ],
     },
+    "Machine Learning Engineer (ML, MLOps, Cloud)": {
+        "non_negotiable": [
+            ("Python for ML (NumPy, pandas, scikit-learn)", ["repo_url"], False),
+            ("Machine learning fundamentals", ["repo_url", "writeup"], False),
+            ("Deep learning & neural networks (PyTorch or TensorFlow)", ["repo_url"], False),
+            ("SQL & data pipelines", ["repo_url", "lab_report"], False),
+            ("Cloud ML platform (AWS SageMaker, GCP Vertex AI, or Azure ML)", ["writeup", "repo_url"], False),
+            ("End-to-end ML project (trained, evaluated, deployed)", ["repo_url", "deployed_url", "writeup"], True),
+        ],
+        "strong_signal": [
+            ("MLOps & model deployment (Docker, CI/CD, monitoring)", ["repo_url"], False),
+            ("Feature engineering & experiment tracking (MLflow / W&B)", ["repo_url"], False),
+            ("Natural language processing (NLP)", ["repo_url"], False),
+            ("Computer vision", ["repo_url"], False),
+            ("Kaggle competition or equivalent benchmark", ["repo_url", "writeup"], False),
+        ],
+    },
+    "AI / Generative AI Engineer (LLMs, Agents, RAG)": {
+        "non_negotiable": [
+            ("Python proficiency (APIs, async, data handling)", ["repo_url"], False),
+            ("LLM fundamentals (prompting, tokenization, context windows)", ["writeup", "repo_url"], False),
+            ("Prompt engineering & evaluation", ["repo_url", "writeup"], False),
+            ("RAG pipeline (retrieval-augmented generation)", ["repo_url"], False),
+            ("AI agent development (tool use, planning, memory)", ["repo_url"], False),
+            ("Deployed GenAI application", ["repo_url", "deployed_url"], True),
+        ],
+        "strong_signal": [
+            ("LLM fine-tuning (LoRA, QLoRA, or full fine-tune)", ["repo_url", "writeup"], False),
+            ("Vector databases (Pinecone, Weaviate, Chroma)", ["repo_url"], False),
+            ("Multi-agent orchestration (LangGraph, CrewAI, AutoGen)", ["repo_url"], False),
+            ("LLM evaluation & safety (evals, red-teaming, guardrails)", ["writeup", "repo_url"], False),
+            ("Multimodal AI (vision + language models)", ["repo_url"], False),
+        ],
+    },
 }
 
 

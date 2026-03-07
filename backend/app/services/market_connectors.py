@@ -15,26 +15,53 @@ def _extract_skill_tokens(text: str) -> list[str]:
         return []
     normalized = text.lower()
     curated = [
-        "python",
-        "sql",
-        "java",
-        "javascript",
-        "react",
-        "aws",
-        "docker",
-        "kubernetes",
-        "power bi",
-        "tableau",
-        "machine learning",
-        "data analysis",
-        "api",
-        "full stack",
-        "cybersecurity",
+        # ── Core languages ──────────────────────────────────────────
+        "python", "sql", "java", "javascript", "typescript", "golang", "rust",
+        "c++", "scala", "r",
+        # ── Web / Frontend ──────────────────────────────────────────
+        "react", "next.js", "vue", "angular", "node.js", "graphql",
+        "rest api", "api", "full stack",
+        # ── AI / ML / GenAI ─────────────────────────────────────────
+        "machine learning", "deep learning", "neural network",
+        "generative ai", "gen ai", "genai",
+        "large language model", "llm", "llms",
+        "natural language processing", "nlp",
+        "agentic ai", "agentic", "ai agents", "ai agent",
+        "prompt engineering", "prompt",
+        "retrieval augmented generation", "rag",
+        "fine-tuning", "fine tuning",
+        "transformers", "hugging face", "huggingface",
+        "langchain", "langgraph", "llamaindex", "llama index",
+        "openai", "anthropic", "claude",
+        "computer vision", "image recognition",
+        "reinforcement learning",
+        "mlops", "ml ops",
+        "pytorch", "tensorflow", "keras",
+        "embeddings", "vector database", "vector db",
+        "pinecone", "weaviate", "chroma",
+        "diffusion model", "stable diffusion",
+        "multimodal",
+        # ── Data ────────────────────────────────────────────────────
+        "data analysis", "data science", "data engineering",
+        "data pipeline", "etl", "feature engineering",
+        "power bi", "tableau", "looker",
+        "pandas", "numpy", "spark", "dbt",
+        "snowflake", "bigquery", "redshift",
+        # ── Cloud / Infra ────────────────────────────────────────────
+        "aws", "azure", "gcp", "google cloud",
+        "docker", "kubernetes", "terraform", "ci/cd",
+        "linux", "devops", "cloud",
+        # ── Security ────────────────────────────────────────────────
+        "cybersecurity", "security", "soc",
+        "penetration testing", "pen testing",
+        "zero trust", "iam", "siem",
     ]
     found = []
+    seen: set[str] = set()
     for skill in curated:
-        if skill in normalized:
+        if skill in normalized and skill not in seen:
             found.append(skill)
+            seen.add(skill)
     if found:
         return found
 
