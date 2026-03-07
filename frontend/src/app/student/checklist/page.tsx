@@ -132,6 +132,16 @@ function ChecklistPageContent() {
 
   useEffect(() => { loadProofs(); }, [headers, isLoggedIn]);
 
+  // Auto-refresh proofs while any are pending AI review
+  useEffect(() => {
+    const hasPending = Object.values(proofsByItem).some(proofs =>
+      proofs.some(p => p.status === "submitted" || p.status === "needs_more_evidence")
+    );
+    if (!hasPending) return;
+    const timer = setTimeout(() => loadProofs(), 8000);
+    return () => clearTimeout(timer);
+  }, [proofsByItem]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     apiGet<StorageMeta>("/meta/storage").then(setStorageMeta).catch(() => setStorageMeta({ s3_enabled: false, local_enabled: true }));
   }, []);
@@ -479,19 +489,19 @@ function ChecklistPageContent() {
         </p>
       </div>
 
-      {/* Skill state legend */}
+      {/* Skill state legend — matches actual displayed statuses below */}
       <div style={{ background: "var(--surface)", borderRadius: 16, padding: 18, border: "1px solid var(--border)" }}>
-        <p style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 12 }}>Skill Verification States</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+        <p style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", marginBottom: 12 }}>How skill states work</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
           {[
-            { icon: "verified", symbol: "✓", label: "AI-Verified", desc: "Proof submitted and confirmed by AI", color: "#22c55e", bg: "rgba(34,197,94,0.08)" },
-            { icon: "edit_note", symbol: "◐", label: "Self-Attested", desc: "You marked it — no AI review yet", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
-            { icon: "description", symbol: "⊕", label: "Resume-Matched", desc: "Detected from your resume upload", color: "#06b6d4", bg: "rgba(6,182,212,0.08)" },
-            { icon: "radio_button_unchecked", symbol: "○", label: "Missing", desc: "Not yet started or no proof added", color: "var(--muted)", bg: "rgba(255,255,255,0.03)" },
+            { label: "Complete", desc: "AI-reviewed certificate verified, or GitHub proof saved", color: "#22c55e", bg: "rgba(34,197,94,0.08)", icon: "check_circle" },
+            { label: "Resume Match", desc: "Skill was found in your uploaded resume — counts toward your MRI score", color: "#06b6d4", bg: "rgba(6,182,212,0.08)", icon: "description" },
+            { label: "AI Reviewing", desc: "Certificate submitted — waiting for AI verification (auto-refreshes)", color: "#f59e0b", bg: "rgba(245,158,11,0.08)", icon: "pending" },
+            { label: "Incomplete", desc: "No proof added yet. Mark proficiency or upload a certificate to complete", color: "var(--muted)", bg: "rgba(255,255,255,0.03)", icon: "radio_button_unchecked" },
           ].map(s => (
             <div key={s.label} style={{ padding: "10px 12px", borderRadius: 10, background: s.bg, border: `1px solid ${s.color}28`, display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: "0.85rem", color: s.color, fontWeight: 800 }}>{s.symbol}</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: s.color }}>{s.icon}</span>
                 <span style={{ fontSize: "0.75rem", fontWeight: 700, color: s.color }}>{s.label}</span>
               </div>
               <p style={{ fontSize: "0.65rem", color: "var(--muted)", lineHeight: 1.5 }}>{s.desc}</p>

@@ -146,6 +146,7 @@ export default function StudentReadinessPage() {
   const [acceleration, setAcceleration] = useState(50);
   const [simLoading, setSimLoading] = useState(false);
   const simTimer = useRef<NodeJS.Timeout | null>(null);
+  const simAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -164,13 +165,21 @@ export default function StudentReadinessPage() {
     if (!isLoggedIn) return;
     if (simTimer.current) clearTimeout(simTimer.current);
     simTimer.current = setTimeout(() => {
+      // Cancel any in-flight simulator request before starting new one
+      if (simAbort.current) simAbort.current.abort();
+      simAbort.current = new AbortController();
       setSimLoading(true);
       apiSend<SimulatorResult>("/simulator/future-shock", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ acceleration }),
-      }).then(setSimResult).catch(() => setSimResult(null)).finally(() => setSimLoading(false));
-    }, 400);
-    return () => { if (simTimer.current) clearTimeout(simTimer.current); };
+        signal: simAbort.current.signal,
+      }).then(setSimResult).catch(err => {
+        if ((err as Error).name !== "AbortError") setSimResult(null);
+      }).finally(() => setSimLoading(false));
+    }, 700);
+    return () => {
+      if (simTimer.current) clearTimeout(simTimer.current);
+    };
   }, [acceleration, isLoggedIn]);
 
   const score = mri?.score ?? 0;

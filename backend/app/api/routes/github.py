@@ -6,7 +6,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_db, get_current_user_id
+from app.models.entities import ChecklistItem, Proof, UserPathway
 
 GITHUB_API_BASE = "https://api.github.com"
 REQUEST_TIMEOUT = 10.0
@@ -273,3 +278,74 @@ def audit_github_user(username: str) -> dict[str, Any]:
             "bio": user_data.get("bio"),
         },
     }
+
+
+class GitHubSaveSkillsIn(BaseModel):
+    username: str
+    verified_skills: list[str]
+
+
+@router.post("/save-skills")
+def save_github_skills(
+    payload: GitHubSaveSkillsIn,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Persist GitHub-verified skills as proof records for matching checklist items."""
+    if not payload.username or not payload.verified_skills:
+        return {"saved": 0, "skipped": 0}
+
+    user_pathway = db.query(UserPathway).filter(UserPathway.user_id == user_id).one_or_none()
+    if not user_pathway or not user_pathway.checklist_version_id:
+        raise HTTPException(status_code=400, detail="No pathway selected. Select a pathway first.")
+
+    checklist_items = (
+        db.query(ChecklistItem)
+        .filter(ChecklistItem.version_id == user_pathway.checklist_version_id)
+        .all()
+    )
+
+    skills_lower = [s.lower() for s in payload.verified_skills]
+    profile_url = f"https://github.com/{payload.username}"
+    saved = 0
+    skipped = 0
+
+    for item in checklist_items:
+        title_lower = item.title.lower()
+        # Match if any GitHub skill name appears in item title or vice-versa
+        matched_skill = next(
+            (s for s in payload.verified_skills if s.lower() in title_lower or title_lower in s.lower()),
+            None,
+        )
+        if not matched_skill:
+            skipped += 1
+            continue
+
+        # Skip if a github_repo proof already exists for this item
+        existing = (
+            db.query(Proof)
+            .filter(
+                Proof.user_id == user_id,
+                Proof.checklist_item_id == item.id,
+                Proof.proof_type == "github_repo",
+            )
+            .first()
+        )
+        if existing:
+            skipped += 1
+            continue
+
+        proof = Proof(
+            user_id=user_id,
+            checklist_item_id=item.id,
+            proof_type="github_repo",
+            url=profile_url,
+            proficiency_level="intermediate",
+            status="verified",
+            review_note=f"Detected in GitHub repos via Signal Audit (matched: {matched_skill}). Proficiency set to Intermediate.",
+        )
+        db.add(proof)
+        saved += 1
+
+    db.commit()
+    return {"saved": saved, "skipped": skipped}

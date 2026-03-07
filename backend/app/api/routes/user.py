@@ -281,6 +281,27 @@ def get_profile(
     return _serialize_profile(profile)
 
 
+@router.patch("/profile", response_model=StudentProfileOut)
+def patch_profile(
+    payload: StudentProfileIn,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Partial update — only updates fields that are explicitly provided in the request body."""
+    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user_id).one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="No profile found")
+    update_data = payload.model_dump(exclude_unset=True)
+    if "github_username" in update_data:
+        update_data["github_username"] = _normalize_github_username(update_data["github_username"])
+    for field, value in update_data.items():
+        setattr(profile, field, value)
+    profile.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(profile)
+    return _serialize_profile(profile)
+
+
 @router.put("/profile", response_model=StudentProfileOut)
 def upsert_profile(
     payload: StudentProfileIn,

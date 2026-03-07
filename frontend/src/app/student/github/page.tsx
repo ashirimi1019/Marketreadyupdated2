@@ -47,6 +47,8 @@ export default function StudentGithubPage() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"audit" | "proof" | "sync">("audit");
+  const [saveSkillsLoading, setSaveSkillsLoading] = useState(false);
+  const [saveSkillsResult, setSaveSkillsResult] = useState<{ saved: number; skipped: number } | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -107,6 +109,20 @@ export default function StudentGithubPage() {
       setSyncMessage(`Synced ${result.synced_count || 0} task${result.synced_count === 1 ? "" : "s"} from GitHub activity.`);
     } catch (error) { setSyncMessage(getErrorMessage(error) || "GitHub task sync failed."); }
     finally { setSyncLoading(false); }
+  };
+
+  const saveVerifiedSkills = async () => {
+    if (!auditResult || !isLoggedIn) return;
+    setSaveSkillsLoading(true); setSaveSkillsResult(null);
+    try {
+      const result = await apiSend<{ saved: number; skipped: number }>("/github/save-skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: auditResult.username, verified_skills: auditResult.verified_skills }),
+      });
+      setSaveSkillsResult(result);
+    } catch { setSaveSkillsResult(null); }
+    finally { setSaveSkillsLoading(false); }
   };
 
   const tabs = [
@@ -222,7 +238,7 @@ export default function StudentGithubPage() {
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                 <div>
                   <p style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#22c55e", marginBottom: 8 }}>Verified Skills</p>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
@@ -240,6 +256,40 @@ export default function StudentGithubPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Save verified skills to checklist */}
+              {auditResult.verified_skills.length > 0 && (
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <button
+                      onClick={saveVerifiedSkills}
+                      disabled={saveSkillsLoading}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 7,
+                        padding: "9px 18px", borderRadius: 10,
+                        background: saveSkillsLoading ? "rgba(34,197,94,0.3)" : "rgba(34,197,94,0.15)",
+                        border: "1px solid rgba(34,197,94,0.4)", color: "#22c55e",
+                        fontWeight: 700, fontSize: "0.82rem", cursor: saveSkillsLoading ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                        {saveSkillsLoading ? "hourglass_top" : "save"}
+                      </span>
+                      {saveSkillsLoading ? "Saving…" : `Save ${auditResult.verified_skills.length} skills to my checklist`}
+                    </button>
+                    {saveSkillsResult && (
+                      <span style={{ fontSize: "0.8rem", color: saveSkillsResult.saved > 0 ? "#22c55e" : "var(--muted)" }}>
+                        {saveSkillsResult.saved > 0
+                          ? `✓ ${saveSkillsResult.saved} skill${saveSkillsResult.saved !== 1 ? "s" : ""} saved as verified proof`
+                          : "No new matching checklist items found (already saved or no pathway match)"}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: 8 }}>
+                    Saves matching skills as GitHub-verified proof on your checklist, updating your MRI score.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

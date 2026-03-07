@@ -201,6 +201,17 @@ function ResumeHook() {
     setFileName(file.name);
     setAnalyzing(true);
     setDone(false);
+    // Store file in sessionStorage so it can be auto-uploaded after account creation
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const dataUrl = e.target?.result as string;
+        sessionStorage.setItem("pending_resume_name", file.name);
+        sessionStorage.setItem("pending_resume_type", file.type || "application/octet-stream");
+        sessionStorage.setItem("pending_resume_data", dataUrl);
+      } catch { /* sessionStorage unavailable or full — ignore */ }
+    };
+    reader.readAsDataURL(file);
     setTimeout(() => { setAnalyzing(false); setDone(true); }, 2200);
   }
 

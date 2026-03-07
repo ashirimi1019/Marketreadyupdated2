@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { apiSend } from "@/lib/api";
+import { apiSend, API_BASE } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 type AuthResponse = {
@@ -46,7 +46,30 @@ export default function RegisterPage() {
       });
       if (res.auth_token && res.refresh_token) {
         login(username.trim(), res.auth_token, res.refresh_token);
-        router.push("/student/readiness");
+        // Auto-upload resume stored from landing page hook
+        try {
+          const pendingName = sessionStorage.getItem("pending_resume_name");
+          const pendingType = sessionStorage.getItem("pending_resume_type");
+          const pendingData = sessionStorage.getItem("pending_resume_data");
+          if (pendingName && pendingData) {
+            const binary = atob(pendingData.split(",")[1]);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const blob = new Blob([bytes], { type: pendingType || "application/octet-stream" });
+            const fd = new FormData();
+            fd.append("file", new File([blob], pendingName, { type: pendingType || "application/octet-stream" }));
+            await fetch(`${API_BASE}/user/profile/resume`, {
+              method: "POST",
+              headers: { "X-Auth-Token": res.auth_token, "X-User-Id": username.trim() },
+              body: fd,
+            }).catch(() => {});
+            sessionStorage.removeItem("pending_resume_name");
+            sessionStorage.removeItem("pending_resume_type");
+            sessionStorage.removeItem("pending_resume_data");
+          }
+        } catch { /* non-critical — resume can be uploaded later */ }
+        // Always send new users through onboarding to select pathway
+        router.push("/student/onboarding");
       } else if (res.email_verification_required) {
         setMsg(res.message ?? "Account created. Verify your email before signing in.", false);
       } else {
@@ -130,7 +153,7 @@ export default function RegisterPage() {
             ))}
           </div>
           <p style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-            Join <strong style={{ color: "var(--fg)" }}>12,400+</strong> students already enrolled
+            Join the <strong style={{ color: "var(--fg)" }}>early access program</strong> — free
           </p>
         </div>
       </div>
